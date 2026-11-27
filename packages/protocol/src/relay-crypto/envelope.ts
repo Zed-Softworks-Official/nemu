@@ -355,6 +355,28 @@ export function openRequest(input: {
     }
 }
 
+/**
+ * The response and push keys of a request, from its HPKE encapsulation
+ * alone. Nothing is decrypted or checked, so these keys only let the
+ * Controller answer a request `openRequest` refused with a sealed, signed
+ * refusal that only the request's sender can open. Twin of Core's
+ * `reply_keys`.
+ */
+export function replyKeys(input: {
+    sealed: SealedRequest
+    controllerEncryptionSecret: Uint8Array
+}): RequestKeys {
+    const enc = b64urlDecodeLength(input.sealed.enc, 32)
+    if (enc === null) throw new RelayCryptoError('malformed')
+    try {
+        return exportKeys(
+            setupBaseReceiver(enc, input.controllerEncryptionSecret, HPKE_INFO)
+        )
+    } catch {
+        throw new RelayCryptoError('malformed')
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Responses
 

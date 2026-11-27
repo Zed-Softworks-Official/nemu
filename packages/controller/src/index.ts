@@ -72,6 +72,12 @@ export {
     useDevicePairing,
     useDevices,
 } from './provider.tsx'
+export {
+    createMemoryRelayCounter,
+    createWebRelayCounter,
+    type RelayCounter,
+    type WebRelayCounterOptions,
+} from './relay-counter.ts'
 export type {
     ReleaseUpdate,
     ReleaseUpdateKind,

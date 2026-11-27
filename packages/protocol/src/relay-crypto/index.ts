@@ -48,6 +48,7 @@ export {
     type RequestKeys,
     type RequestPolicy,
     type ResponseHeader,
+    replyKeys,
     requestHeaderSchema,
     responseHeaderFor,
     responseHeaderSchema,

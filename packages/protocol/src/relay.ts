@@ -90,9 +90,10 @@ const setupRelayMessageSchemas = [
 /**
  * Commissioning every Membership may do over Relay (ADR-0034). Starting
  * Matter commissioning and reading or saving Matter Wi-Fi have no Relay
- * message: pairing codes and Wi-Fi credentials must not cross Relay until
- * its envelopes are encrypted end to end (NEM-63). Cancelling Matter carries
- * neither, so a commissioning started over LAN can still be stopped.
+ * message: ADR-0034's interim limit keeps pairing codes and Wi-Fi
+ * credentials off Relay until NEM-98 lifts it, even though envelopes are now
+ * sealed end to end. Cancelling Matter carries neither, so a commissioning
+ * started over LAN can still be stopped.
  */
 const commissioningRelayMessageSchemas = [
     z.object({ type: z.literal('cancelMatterCommission') }),
@@ -106,7 +107,12 @@ const commissioningRelayResultSchemas = [
     permitJoinResponseSchema.extend({ type: z.literal('permitJoin') }),
 ] as const
 
-const authenticatedRelayMessageSchema = z.union([
+/**
+ * One action, as a sealed Relay request's plaintext (`JSON.stringify` of
+ * it, encrypted to the Controller). The clear header carries the requestId;
+ * nothing else is in the clear (ADR-0001).
+ */
+export const relayRequestMessageSchema = z.union([
     ...setupRelayMessageSchemas,
     ...commissioningRelayMessageSchemas,
     relayCommandMessageSchema,
@@ -140,6 +146,67 @@ const authenticatedRelayMessageSchema = z.union([
     z.object({ type: z.literal('getHealthSummary') }),
 ])
 
+export type RelayRequestMessage = z.infer<typeof relayRequestMessageSchema>
+
+/** One reply, as a sealed Relay response's plaintext. */
+export const relayReplyMessageSchema = z.union([
+    relayCommandResultMessageSchema,
+    relaySnapshotMessageSchema,
+    z.object({
+        type: z.literal('devices'),
+        devices: z.array(z.unknown()),
+    }),
+    z.object({
+        type: z.literal('rooms'),
+        rooms: z.array(roomSchema),
+    }),
+    z.object({ type: z.literal('device'), device: deviceSchema }),
+    z.object({ type: z.literal('room'), room: roomSchema }),
+    z.object({
+        type: z.literal('members'),
+        members: z.array(householdMemberSchema),
+    }),
+    z.object({
+        type: z.literal('member'),
+        member: householdMemberSchema,
+    }),
+    z.object({
+        type: z.literal('tokens'),
+        tokens: z.array(clientTokenSchema),
+    }),
+    capabilitySnapshotEventSchema,
+    capabilityChangeEventSchema,
+    z.object({ type: z.literal('capabilityWatchAck') }),
+    historyQueryResultSchema,
+    historyQueryRestartSchema,
+    homeMeterDesignationResultSchema,
+    historyBackupResultSchema,
+    historyBackupRestoredSchema,
+    releaseStatusSchema.extend({
+        type: z.literal('releaseStatus'),
+    }),
+    applyUpdateResponseSchema.extend({
+        type: z.literal('installRelease'),
+    }),
+    applyUpdateResponseSchema.extend({
+        type: z.literal('rollbackRelease'),
+    }),
+    switchReleaseChannelResponseSchema.extend({
+        type: z.literal('switchReleaseChannel'),
+    }),
+    ...commissioningRelayResultSchemas,
+    sessionResponseSchema.extend({ type: z.literal('session') }),
+    ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+    memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
+])
+export type RelayReplyMessage = z.infer<typeof relayReplyMessageSchema>
+
+/**
+ * @deprecated The plaintext Relay envelope. Relay requests are sealed now
+ * (NEM-129) and carry a {@link RelayRequestMessage}; no bearer token is ever
+ * sent. Kept only for `mintSessionViaRelay` and message-shape tests until
+ * NEM-131 deletes session mints.
+ */
 export const relayToControllerEnvelopeSchema = z.union([
     z.object({
         requestId: z.string(),
@@ -154,74 +221,33 @@ export const relayToControllerEnvelopeSchema = z.union([
          * disconnected does not run later. Older Controllers ignore it.
          */
         expiresAt: z.number().int().optional(),
-        message: authenticatedRelayMessageSchema,
+        message: relayRequestMessageSchema,
     }),
 ])
 export type RelayToControllerEnvelope = z.infer<
     typeof relayToControllerEnvelopeSchema
 >
 
+/**
+ * @deprecated The plaintext Relay reply. Replies are sealed now (NEM-129)
+ * and carry a {@link RelayReplyMessage}. Kept only for `mintSessionViaRelay`
+ * and message-shape tests until NEM-131 deletes session mints.
+ */
 export const relayToClientEnvelopeSchema = z.object({
     requestId: z.string(),
     signature: z.string(),
     message: z.union([
-        relayCommandResultMessageSchema,
-        relaySnapshotMessageSchema,
-        z.object({
-            type: z.literal('devices'),
-            devices: z.array(z.unknown()),
-        }),
-        z.object({
-            type: z.literal('rooms'),
-            rooms: z.array(roomSchema),
-        }),
-        z.object({ type: z.literal('device'), device: deviceSchema }),
-        z.object({ type: z.literal('room'), room: roomSchema }),
+        relayReplyMessageSchema,
         z.object({
             type: z.literal('sessionMintResult'),
             clientToken: z.string(),
             controllerId: z.string(),
         }),
-        z.object({
-            type: z.literal('members'),
-            members: z.array(householdMemberSchema),
-        }),
-        z.object({
-            type: z.literal('member'),
-            member: householdMemberSchema,
-        }),
-        z.object({
-            type: z.literal('tokens'),
-            tokens: z.array(clientTokenSchema),
-        }),
-        capabilitySnapshotEventSchema,
-        capabilityChangeEventSchema,
-        z.object({ type: z.literal('capabilityWatchAck') }),
-        historyQueryResultSchema,
-        historyQueryRestartSchema,
-        homeMeterDesignationResultSchema,
-        historyBackupResultSchema,
-        historyBackupRestoredSchema,
-        releaseStatusSchema.extend({
-            type: z.literal('releaseStatus'),
-        }),
-        applyUpdateResponseSchema.extend({
-            type: z.literal('installRelease'),
-        }),
-        applyUpdateResponseSchema.extend({
-            type: z.literal('rollbackRelease'),
-        }),
-        switchReleaseChannelResponseSchema.extend({
-            type: z.literal('switchReleaseChannel'),
-        }),
-        ...commissioningRelayResultSchemas,
-        sessionResponseSchema.extend({ type: z.literal('session') }),
-        ownerHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
-        memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
     ]),
 })
 export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
 
+/** @deprecated See {@link relayToControllerEnvelopeSchema}. */
 export const relayEnvelopeSchema = z.union([
     relayToControllerEnvelopeSchema,
     relayToClientEnvelopeSchema,

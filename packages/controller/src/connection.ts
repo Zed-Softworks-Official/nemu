@@ -37,6 +37,7 @@ import {
     type UpdateStatusResponse,
 } from '@nemu/protocol'
 import type { ConvexReactClient } from 'convex/react'
+import type { AccessClientKeyStore } from './access-client-keys.ts'
 import {
     discoverController,
     identifyController,
@@ -84,7 +85,11 @@ export type ControllerConnectors = {
         baseUrl: string
         getToken: GetToken
     }) => ControllerTransport
-    /** Returns null when Relay is not configured. */
+    /**
+     * Returns null when Relay is not configured. The default Relay
+     * transport seals with `accessClientKeyStore` and never sends the
+     * token; `getToken` is for test fakes until NEM-131.
+     */
     createRelayTransport: (options: {
         controllerId: string
         getToken: GetToken
@@ -94,6 +99,11 @@ export type ControllerConnectors = {
 export type ControllerConnectionOptions = {
     convex?: ConvexReactClient
     relayApi?: RelayApi
+    /**
+     * This client's Access Client keys and pinned Controller keys. Relay
+     * needs them: every Relay request is sealed with them (ADR-0001).
+     */
+    accessClientKeyStore?: AccessClientKeyStore
     /** Override discovery candidates (useful in tests / local core). */
     lanCandidates?: string[]
     /** How often to reprobe LAN while on relay. */
@@ -147,14 +157,14 @@ export class ControllerConnection {
                 discoverController(candidates, rememberedBaseUrl),
             identify: (baseUrl) => identifyController(baseUrl),
             createLanTransport: (lan) => new LanTransport(lan),
-            createRelayTransport: ({ controllerId, getToken }) => {
-                const { convex, relayApi } = this.options
-                if (!convex || !relayApi) return null
+            createRelayTransport: ({ controllerId }) => {
+                const { convex, relayApi, accessClientKeyStore } = this.options
+                if (!convex || !relayApi || !accessClientKeyStore) return null
                 return new RelayTransport({
                     convex,
                     api: relayApi,
                     controllerId,
-                    getToken,
+                    keyStore: accessClientKeyStore,
                 })
             },
             ...options.connectors,
@@ -780,9 +790,12 @@ export class ControllerConnection {
             return false
         }
 
-        if (!controllerId || !token) {
-            return false
-        }
+        if (!controllerId) return false
+        const keyStore = this.options.accessClientKeyStore
+        const paired =
+            token !== null ||
+            (keyStore ? (await keyStore.load(controllerId)) !== null : false)
+        if (!paired) return false
 
         try {
             const relay = this.connectors.createRelayTransport({

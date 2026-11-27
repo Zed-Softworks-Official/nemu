@@ -30,14 +30,14 @@ import {
     patchRoomRequestSchema,
     permitJoinRequestSchema,
     permitJoinResponseSchema,
-    type RelayToClientEnvelope,
-    type RelayToControllerEnvelope,
+    type RelayReplyMessage,
+    type RelayRequestMessage,
     type ReleaseChannel,
     type RenameDeviceRequest,
     type RenameRoomRequest,
     type Room,
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
+    relayReplyMessageSchema,
+    relayRequestMessageSchema,
     renameDeviceRequestSchema,
     renameRoomRequestSchema,
     type SessionResponse,
@@ -47,54 +47,81 @@ import {
     type UpdateStatusResponse,
     updateStatusResponseSchema,
 } from '@nemu/protocol'
+import {
+    openResponse,
+    RelayCryptoError,
+    type RequestHeader,
+    type RequestKeys,
+    type SealedPush,
+    type SealedRequest,
+    type SealedResponse,
+    sealRequest,
+    utf8Decode,
+    utf8Encode,
+} from '@nemu/protocol/relay-crypto'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
-import type { GetToken } from '../http.ts'
+import type {
+    AccessClientKeyStore,
+    AccessClientRecord,
+} from '../access-client-keys.ts'
+import { NOT_PAIRED_ERROR_CODE } from '../local-session.ts'
+import { createWebRelayCounter, type RelayCounter } from '../relay-counter.ts'
 import {
     acknowledgeRelayResponses,
     type RelayAcknowledgeRef,
 } from './relay-acknowledge.ts'
 import type { ControllerTransport } from './types.ts'
 
-type RelaySendArgs = {
-    controllerId: string
-    requestId: string
-    payload: string
-}
-
-type RelayResponseDoc = {
+/**
+ * A response or push in the mailbox, as `relay:responses` returns it. Its
+ * `kind` shares the mailbox's validator, so the type allows `request`.
+ */
+type RelayToClientDoc = {
     _id: string
-    requestId: string
-    payload: string
-    direction: 'toController' | 'toClient'
+    kind: 'request' | 'response' | 'push'
+    sealed: SealedResponse | SealedPush
 }
 
+/** The Convex Relay functions (NEM-128): sealed envelopes only. */
 export type RelayApi = {
     // Return type is intentionally loose so generated Convex Id<"relayMessages">
     // (and similar) assign without casts at the app boundary.
-    send: FunctionReference<'mutation', 'public', RelaySendArgs, unknown>
+    send: FunctionReference<
+        'mutation',
+        'public',
+        { sealed: SealedRequest },
+        unknown
+    >
     responses: FunctionReference<
         'query',
         'public',
-        { requestIds: string[] },
-        RelayResponseDoc[]
+        { controllerId: string; accessClientId: string; requestIds: string[] },
+        RelayToClientDoc[]
     >
     acknowledge: RelayAcknowledgeRef
 }
 
-type RelayRequestMessage = Extract<
-    RelayToControllerEnvelope,
-    { clientToken: string }
->['message']
+/** A reply, opened and checked against the pinned Controller key. */
+type RelayReply = { requestId: string; message: RelayReplyMessage }
 
 export type RelayTransportOptions = {
     convex: ConvexReactClient
     api: RelayApi
     controllerId: string
-    getToken: GetToken
+    /** This Access Client's keys and the Controller keys pinned at pairing. */
+    keyStore: AccessClientKeyStore
+    /**
+     * Where counters come from. Defaults to `createWebRelayCounter`: every
+     * tab shares one sequence under a Web Lock, or memory outside a browser.
+     */
+    counter?: RelayCounter
     pollIntervalMs?: number
     commandTimeoutMs?: number
 }
+
+/** Sends of one request: a refusal that names a fix gets one more try each. */
+const MAX_SEND_ATTEMPTS = 3
 
 /**
  * Requests that change nothing. Every other request is a write, which must
@@ -118,10 +145,14 @@ const RELAY_READS: ReadonlySet<RelayRequestMessage['type']> = new Set<
 ])
 
 /**
- * Relay transport talks to Convex mailbox functions. It has no way to send a
- * Matter pairing code or Wi-Fi credentials, which must not reach Convex until
- * Relay envelopes are encrypted end to end (NEM-63, ADR-0034).
- * Capability snapshots and live changes use the same messages as LAN.
+ * Relay transport talks to Convex mailbox functions with sealed envelopes
+ * (ADR-0001). Every request is encrypted to the Controller key pinned at
+ * pairing and signed with this Access Client's key; every reply is opened
+ * and checked against the pinned Controller key. Convex sees only the clear
+ * header, and no bearer token is ever sent. It has no way to send a Matter
+ * pairing code or Wi-Fi credentials (ADR-0034's interim limit, until
+ * NEM-98). Capability snapshots use the same messages as LAN; live changes
+ * over Relay are sealed pushes, which NEM-132 adds.
  */
 export class RelayTransport implements ControllerTransport {
     readonly mode = 'relay' as const
@@ -129,33 +160,31 @@ export class RelayTransport implements ControllerTransport {
     private readonly convex: ConvexReactClient
     private readonly api: RelayApi
     private readonly controllerId: string
-    private readonly getToken: GetToken
+    private readonly keyStore: AccessClientKeyStore
+    private counter: RelayCounter | null
     private readonly pollIntervalMs: number
     private readonly commandTimeoutMs: number
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
-    private readonly pendingIds = new Set<string>()
-    private pollTimer: ReturnType<typeof setInterval> | null = null
-    private seenResponses = new Set<string>()
     private connected = false
     private watchTimer: ReturnType<typeof setInterval> | null = null
-    private watchRequestId: string | null = null
-    private previousWatchRequestId: string | null = null
 
     constructor(options: RelayTransportOptions) {
         this.convex = options.convex
         this.api = options.api
         this.controllerId = options.controllerId
-        this.getToken = options.getToken
+        this.keyStore = options.keyStore
+        this.counter = options.counter ?? null
         this.pollIntervalMs = options.pollIntervalMs ?? 1_000
         this.commandTimeoutMs = options.commandTimeoutMs ?? 20_000
     }
 
     async connect(): Promise<void> {
+        // Without keys for this Home there is nothing to seal with.
+        await this.record()
         this.connected = true
-        this.startPolling()
         this.watchTimer = setInterval(() => {
             void this.renewCapabilityWatch().catch(() => {
-                // The next renewal retries. Live changes resume when the watch is accepted.
+                // The next renewal retries.
             })
         }, 20_000)
         void this.renewCapabilityWatch().catch(() => {
@@ -165,18 +194,10 @@ export class RelayTransport implements ControllerTransport {
 
     disconnect(): void {
         this.connected = false
-        if (this.pollTimer) {
-            clearInterval(this.pollTimer)
-            this.pollTimer = null
-        }
         if (this.watchTimer) {
             clearInterval(this.watchTimer)
             this.watchTimer = null
         }
-        this.watchRequestId = null
-        this.previousWatchRequestId = null
-        this.pendingIds.clear()
-        this.seenResponses.clear()
     }
 
     async requestCapabilitySnapshot(): Promise<void> {
@@ -543,10 +564,7 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for leaveHome')
     }
 
-    private throwIfCommandError(
-        parsed: RelayToClientEnvelope,
-        action: string
-    ): void {
+    private throwIfCommandError(parsed: RelayReply, action: string): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
             // Same error shape as LAN, so callers can act on the code.
             throw new ApiError(
@@ -558,16 +576,23 @@ export class RelayTransport implements ControllerTransport {
         }
     }
 
-    private async request(
-        message: RelayRequestMessage
-    ): Promise<RelayToClientEnvelope> {
-        const requestId = crypto.randomUUID()
-        const token = this.getToken()
-        if (!token) throw new Error('Missing client token')
+    private async record(): Promise<AccessClientRecord> {
+        const record = await this.keyStore.load(this.controllerId)
+        if (!record) {
+            throw new ApiError(
+                NOT_PAIRED_ERROR_CODE,
+                'This device is not paired with this Home. Pair it again at home.'
+            )
+        }
+        return record
+    }
 
+    private async request(message: RelayRequestMessage): Promise<RelayReply> {
+        const action = relayRequestMessageSchema.parse(message)
+        const record = await this.record()
         // Convex holds mutations while disconnected and sends them on
         // reconnect. A write must not happen later (ADR-0015).
-        const write = !RELAY_READS.has(message.type)
+        const write = !RELAY_READS.has(action.type)
         if (write && !this.convex.connectionState().isWebSocketConnected) {
             throw new ApiError(
                 'relay_disconnected',
@@ -575,61 +600,82 @@ export class RelayTransport implements ControllerTransport {
             )
         }
 
-        const envelope = relayToControllerEnvelopeSchema.parse({
-            requestId,
-            clientToken: token,
-            // The socket can still drop before Convex takes this write. The
-            // Controller refuses it if it arrives after we stopped waiting.
-            expiresAt: write ? Date.now() + this.commandTimeoutMs : undefined,
-            message,
+        const requestId = crypto.randomUUID()
+        // The same bytes on every attempt, so a retry is the same request.
+        const plaintext = utf8Encode(JSON.stringify(action))
+        // The socket can still drop before Convex takes the request. The
+        // Controller refuses it once we stopped waiting.
+        const deadline = Date.now() + this.commandTimeoutMs
+        let enrollment = record.enrollment
+        this.counter ??= createWebRelayCounter({
+            controllerId: this.controllerId,
+            accessClientId: enrollment.accessClientId,
         })
-
-        const started = Date.now()
-        await this.settleInTime(
-            this.convex.mutation(this.api.send, {
+        const counter = this.counter
+        for (let attempt = 1; ; attempt++) {
+            const header: RequestHeader = {
                 controllerId: this.controllerId,
+                identityEpoch: enrollment.identityEpoch ?? 1,
+                accessClientId: enrollment.accessClientId,
                 requestId,
-                payload: JSON.stringify(envelope),
+                counter: await counter.next(),
+                expiresAt: deadline,
+            }
+            const { sealed, keys } = await sealRequest({
+                header,
+                plaintext,
+                controllerEncryptionKey: enrollment.controllerEncryptionKey,
+                accessClientSigner: record.keys.signer,
             })
-        )
-        this.pendingIds.add(requestId)
-
-        const response = await this.waitForResponse(requestId, started)
-        const parsed = relayToClientEnvelopeSchema.parse(
-            JSON.parse(response.payload)
-        )
-        this.emitCommandResultOnce(response, parsed)
-        return parsed
+            await this.settleBy(
+                this.convex.mutation(this.api.send, { sealed }),
+                deadline
+            )
+            const reply = await this.waitForReply(
+                header,
+                keys,
+                enrollment.controllerSigningKey,
+                deadline
+            )
+            if (attempt >= MAX_SEND_ATTEMPTS) return this.delivered(reply)
+            const fix = refusalFix(reply.message)
+            if (fix?.identityEpoch !== undefined) {
+                // The Home moved to a new Controller identity epoch; the
+                // signed refusal says which. Address it from now on.
+                enrollment = { ...enrollment, identityEpoch: fix.identityEpoch }
+                await this.keyStore.save({ keys: record.keys, enrollment })
+                continue
+            }
+            if (fix?.highestCounter !== undefined) {
+                // This client's counters fell behind the Controller's window.
+                await counter.advancePast(fix.highestCounter)
+                continue
+            }
+            return this.delivered(reply)
+        }
     }
 
-    /**
-     * Emits a Command's outcome once, whether the waiter or the general poll
-     * read the response first. The waiter deletes the response once it has
-     * it, so the poll may never see it.
-     */
-    private emitCommandResultOnce(
-        response: RelayResponseDoc,
-        envelope: RelayToClientEnvelope
-    ): void {
-        if (envelope.message.type !== 'commandResult') return
-        const key = `${response.requestId}:${response.payload}`
-        if (this.seenResponses.has(key)) return
-        this.seenResponses.add(key)
-        this.emit({
-            type: 'commandResult',
-            requestId: envelope.requestId,
-            ok: envelope.message.ok,
-            outcome: envelope.message.outcome,
-            error: envelope.message.error,
-        })
+    /** Emits a Command's outcome once its reply has arrived. */
+    private delivered(reply: RelayReply): RelayReply {
+        if (reply.message.type === 'commandResult') {
+            this.emit({
+                type: 'commandResult',
+                requestId: reply.requestId,
+                ok: reply.message.ok,
+                outcome: reply.message.outcome,
+                error: reply.message.error,
+            })
+        }
+        return reply
     }
 
     private acknowledge(messageIds: string[]): void {
+        if (messageIds.length === 0) return
         acknowledgeRelayResponses(this.convex, this.api.acknowledge, messageIds)
     }
 
     /** Stops waiting for a send that Convex is holding. */
-    private async settleInTime(sent: Promise<unknown>): Promise<void> {
+    private async settleBy(sent: Promise<unknown>, deadline: number) {
         let timer: ReturnType<typeof setTimeout> | undefined
         try {
             await Promise.race([
@@ -637,7 +683,7 @@ export class RelayTransport implements ControllerTransport {
                 new Promise<never>((_, reject) => {
                     timer = setTimeout(
                         () => reject(new Error('Relay command timed out')),
-                        this.commandTimeoutMs
+                        Math.max(0, deadline - Date.now())
                     )
                 }),
             ])
@@ -659,121 +705,62 @@ export class RelayTransport implements ControllerTransport {
         }
     }
 
-    private startPolling(): void {
-        if (this.pollTimer) return
-        this.pollTimer = setInterval(() => {
-            void this.pollResponses()
-        }, this.pollIntervalMs)
-    }
-
-    private async pollResponses(): Promise<void> {
-        if (!this.connected || this.pendingIds.size === 0) return
-        try {
-            const requestIds = [...this.pendingIds]
-            const messages = await this.convex.query(this.api.responses, {
-                requestIds,
-            })
-            // Only watch messages are used here. A request's waiter deletes
-            // its own response, which it may not have read yet.
-            const watchIds = new Set(
-                [this.watchRequestId, this.previousWatchRequestId].filter(
-                    (id): id is string => id !== null
-                )
-            )
-            const used: string[] = []
-            for (const message of messages) {
-                const key = `${message.requestId}:${message.payload}`
-                if (watchIds.has(message.requestId)) used.push(message._id)
-                try {
-                    const envelope = relayToClientEnvelopeSchema.parse(
-                        JSON.parse(message.payload)
-                    )
-                    // The active view is returned by queryHistory. Do not retain the series here.
-                    if (
-                        envelope.message.type === 'historyQueryResult' ||
-                        envelope.message.type === 'historyQueryRestart' ||
-                        envelope.message.type === 'homeMeterDesignation'
-                    ) {
-                        continue
-                    }
-                    if (envelope.message.type === 'commandResult') {
-                        this.emitCommandResultOnce(message, envelope)
-                        continue
-                    }
-                    if (this.seenResponses.has(key)) continue
-                    this.seenResponses.add(key)
-                    if (
-                        envelope.message.type === 'capabilitySnapshot' ||
-                        envelope.message.type === 'capabilityChange'
-                    ) {
-                        this.emit(envelope.message)
-                    }
-                } catch {
-                    // ignore malformed payloads
-                }
-            }
-            this.acknowledge(used)
-        } catch {
-            // transient poll failures are ignored; next tick retries
-        }
-    }
-
+    /**
+     * Keeps a capability watch registered with the Controller. Its sealed
+     * pushes, under the key exported from this request, are NEM-132's.
+     */
     private async renewCapabilityWatch(): Promise<void> {
         if (!this.connected) return
-        const token = this.getToken()
-        if (!token) return
-        const requestId = crypto.randomUUID()
-        const envelope = relayToControllerEnvelopeSchema.parse({
-            requestId,
-            clientToken: token,
-            message: { type: 'watchCapabilityChanges' },
-        })
-        await this.convex.mutation(this.api.send, {
-            controllerId: this.controllerId,
-            requestId,
-            payload: JSON.stringify(envelope),
-        })
-        if (this.previousWatchRequestId) {
-            this.pendingIds.delete(this.previousWatchRequestId)
-        }
-        this.previousWatchRequestId = this.watchRequestId
-        this.watchRequestId = requestId
-        this.pendingIds.add(requestId)
+        await this.request({ type: 'watchCapabilityChanges' })
     }
 
-    private waitForResponse(
-        requestId: string,
-        started: number
-    ): Promise<RelayResponseDoc> {
+    /**
+     * Polls for the reply to one sent request. Only a reply that opens with
+     * this request's keys and verifies against the pinned Controller key
+     * counts. Anything else under this requestId (a reply to an earlier
+     * attempt, or one Convex forged or altered) is acknowledged and ignored.
+     */
+    private waitForReply(
+        header: RequestHeader,
+        keys: RequestKeys,
+        controllerSigningKey: Uint8Array,
+        deadline: number
+    ): Promise<RelayReply> {
+        const { requestId } = header
         return new Promise((resolve, reject) => {
             const tick = async () => {
                 if (!this.connected) {
                     reject(new Error('Relay transport disconnected'))
                     return
                 }
-                if (Date.now() - started > this.commandTimeoutMs) {
-                    this.pendingIds.delete(requestId)
+                if (Date.now() > deadline) {
                     reject(new Error('Relay command timed out'))
                     return
                 }
                 try {
-                    const messages = await this.convex.query(
-                        this.api.responses,
-                        {
-                            requestIds: [requestId],
+                    const docs = await this.convex.query(this.api.responses, {
+                        controllerId: this.controllerId,
+                        accessClientId: header.accessClientId,
+                        requestIds: [requestId],
+                    })
+                    const discard: string[] = []
+                    for (const doc of docs) {
+                        if (doc.kind !== 'response') continue
+                        const message = openReply(
+                            doc.sealed as SealedResponse,
+                            header,
+                            keys,
+                            controllerSigningKey
+                        )
+                        if (!message) {
+                            discard.push(doc._id)
+                            continue
                         }
-                    )
-                    const match = messages.find(
-                        (m) =>
-                            m.requestId === requestId &&
-                            m.direction === 'toClient'
-                    )
-                    if (match) {
-                        this.pendingIds.delete(requestId)
-                        resolve(match)
-                        this.acknowledge([match._id])
+                        this.acknowledge([...discard, doc._id])
+                        resolve({ requestId, message })
                         return
                     }
+                    this.acknowledge(discard)
                 } catch {
                     // retry
                 }
@@ -783,5 +770,61 @@ export class RelayTransport implements ControllerTransport {
             }
             void tick()
         })
+    }
+}
+
+/** The reply's message, or `null` unless it is this request's and genuine. */
+function openReply(
+    sealed: SealedResponse,
+    request: RequestHeader,
+    keys: RequestKeys,
+    controllerSigningKey: Uint8Array
+): RelayReplyMessage | null {
+    try {
+        const plaintext = openResponse({
+            sealed,
+            request,
+            keys,
+            controllerSigningKey,
+        })
+        const text = utf8Decode(plaintext)
+        if (text === null) return null
+        const parsed = relayReplyMessageSchema.safeParse(JSON.parse(text))
+        return parsed.success ? parsed.data : null
+    } catch (error) {
+        if (error instanceof RelayCryptoError || error instanceof SyntaxError) {
+            return null
+        }
+        throw error
+    }
+}
+
+/**
+ * What a signed refusal asks the client to fix before trying again: a new
+ * identity epoch, or counters past the Controller's highest.
+ */
+function refusalFix(
+    message: RelayReplyMessage
+): { identityEpoch?: number; highestCounter?: number } | null {
+    if (message.type !== 'commandResult' || message.ok) return null
+    const details = message.error?.details as
+        | Record<string, unknown>
+        | undefined
+    const safe = (value: unknown) =>
+        typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+            ? value
+            : undefined
+    switch (message.error?.code) {
+        case 'retired_epoch': {
+            const identityEpoch = safe(details?.identityEpoch)
+            return identityEpoch === undefined ? null : { identityEpoch }
+        }
+        case 'replayed':
+        case 'outside_window': {
+            const highestCounter = safe(details?.highestCounter)
+            return highestCounter === undefined ? null : { highestCounter }
+        }
+        default:
+            return null
     }
 }
