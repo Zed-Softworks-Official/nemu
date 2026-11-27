@@ -84,8 +84,9 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
           # NEM-119: the golden has the plug publish offline, which the Rust
-          # adapter never does.
-          MATTER_HARNESS_UNCHECKED_STEPS: plug-goes-offline
+          # adapter never does. NEM-121: the golden keeps the Capability IDs
+          # across a restart, which the Rust adapter loses.
+          MATTER_HARNESS_UNCHECKED_STEPS: plug-goes-offline,adapter-restarts
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
@@ -142,11 +143,6 @@ jobs:
           # NEM-120: commission-cancel. NEM-119: rename, offline and recovery, remove, restart.
           # NEM-117: strips.
           MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,commission-light,light-on,light-brightness,light-brightness-below-minimum,light-brightness-above-maximum,light-color-temperature,light-color-temperature-above-maximum,light-off,rename-light,plug-goes-offline,plug-comes-back,health-check,commission-without-code,commission-cancel,remove-light,adapter-restarts,commission-strip,strip-outlet-2-on,strip-outlet-1-on,strip-all-off
-          # adapter-restarts: the golden records the Rust boot re-read, a fresh reading with the
-          # assigned Capability IDs lost (Rust kept them in memory). matter.js keeps them
-          # (NEM-118) and does not re-stamp an unchanged stored reading. Everything else in
-          # the step matches; harness:lifecycle below checks the restart itself.
-          MATTER_HARNESS_UNCHECKED_STEPS: adapter-restarts
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
