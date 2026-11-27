@@ -546,3 +546,202 @@ async fn pairing_codes_and_wifi_credentials_stay_lan_only() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Capability-watch pushes (NEM-132)
+
+use crate::relay::watches::{CAPABILITY_WATCH_TTL, CapabilityPushes};
+use crate::relay_crypto::envelope::{SealedPush, open_push};
+use crate::relay_crypto::replay::ReplayWindow;
+
+/// A watch as its Access Client holds it: the registering request's header
+/// and keys, and the pushes it has accepted so far.
+struct Watching {
+    sent: Sent,
+    window: ReplayWindow,
+}
+
+impl Client {
+    async fn watch(&mut self, home: &Home, request_id: &str, renews: Option<&str>) -> Watching {
+        let mut action = json!({ "type": "watchCapabilityChanges" });
+        if let Some(renews) = renews {
+            action["renews"] = json!(renews);
+        }
+        let sent = self.seal(request_id, action);
+        assert_eq!(
+            home.exchange(self, &sent).await,
+            json!({ "type": "capabilityWatchAck" })
+        );
+        Watching {
+            sent,
+            window: ReplayWindow::default(),
+        }
+    }
+
+    /// Opens a push against the watch and the pinned Controller key.
+    fn open_push(&self, watching: &mut Watching, push: &SealedPush) -> Value {
+        let (plaintext, window) = open_push(
+            push,
+            &watching.sent.sealed.header,
+            &watching.sent.keys,
+            &self.controller_signing_key,
+            &watching.window,
+        )
+        .expect("the push opens with the watch's key and the pinned Controller key");
+        watching.window = window;
+        serde_json::from_slice(&plaintext).unwrap()
+    }
+}
+
+fn change(home: &Home) -> crate::events::DeviceEvent {
+    crate::events::DeviceEvent::from_capability_snapshot(home.state().capabilities.snapshot())
+}
+
+fn pushes_on<'a>(pushes: &'a [SealedPush], watching: &Watching) -> Vec<&'a SealedPush> {
+    pushes
+        .iter()
+        .filter(|push| push.header.request_id == watching.sent.sealed.header.request_id)
+        .collect()
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn each_change_is_sealed_to_the_watch_with_a_rising_counter() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let mut pushes = CapabilityPushes::new(home.state().clone());
+    let mut watching = client.watch(&home, "w1", None).await;
+    let event = change(&home);
+
+    let first = pushes.seal(&event).await;
+    let second = pushes.seal(&event).await;
+    assert_eq!((first.len(), second.len()), (1, 1));
+    assert_eq!(first[0].header.counter, 1);
+    assert_eq!(second[0].header.counter, 2);
+    // Bound to the Access Client and the watch's request, nothing else.
+    assert_eq!(first[0].header.access_client_id, client.id);
+    assert_eq!(first[0].header.request_id, "w1");
+
+    // Convex sees the push header and opaque bytes.
+    let on_the_wire = serde_json::to_value(&first[0]).unwrap();
+    let mut keys: Vec<_> = on_the_wire.as_object().unwrap().keys().cloned().collect();
+    keys.sort();
+    assert_eq!(keys, ["ciphertext", "header", "signature"]);
+    assert!(!on_the_wire.to_string().contains("capabilitySnapshot"));
+
+    let expected = serde_json::to_value(&event).unwrap();
+    assert_eq!(client.open_push(&mut watching, &first[0]), expected);
+    assert_eq!(client.open_push(&mut watching, &second[0]), expected);
+    // The client refuses the same push twice.
+    assert!(
+        open_push(
+            &first[0],
+            &watching.sent.sealed.header,
+            &watching.sent.keys,
+            &client.controller_signing_key,
+            &watching.window,
+        )
+        .is_err()
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_renewal_replaces_only_the_watch_it_names() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let mut pushes = CapabilityPushes::new(home.state().clone());
+    // Two tabs of one browser share an Access Client and watch separately.
+    let tab_a = client.watch(&home, "tab-a-1", None).await;
+    let mut tab_b = client.watch(&home, "tab-b-1", None).await;
+    let mut tab_a_renewed = client.watch(&home, "tab-a-2", Some("tab-a-1")).await;
+
+    let sealed = pushes.seal(&change(&home)).await;
+    assert_eq!(sealed.len(), 2);
+    assert!(pushes_on(&sealed, &tab_a).is_empty());
+    // The renewed watch starts its own counter at 1, under its own key.
+    let on_renewed = pushes_on(&sealed, &tab_a_renewed);
+    assert_eq!(on_renewed[0].header.counter, 1);
+    client.open_push(&mut tab_a_renewed, on_renewed[0]);
+    let on_b = pushes_on(&sealed, &tab_b);
+    client.open_push(&mut tab_b, on_b[0]);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_watch_ends_at_its_ttl() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let mut pushes = CapabilityPushes::new(home.state().clone());
+    client.watch(&home, "w1", None).await;
+
+    let later =
+        std::time::Instant::now() + CAPABILITY_WATCH_TTL + std::time::Duration::from_secs(1);
+    assert!(pushes.seal_at(&change(&home), later).await.is_empty());
+    // Expired for good: nothing comes back once the clock is "now" again.
+    assert!(pushes.seal(&change(&home)).await.is_empty());
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn revoking_an_access_client_ends_its_watch_at_once() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut phone = home.client("user_owner", "owner", 1).await;
+    let mut laptop = home.client("user_owner_2", "owner", 2).await;
+    let mut pushes = CapabilityPushes::new(home.state().clone());
+    phone.watch(&home, "phone-w", None).await;
+    let laptop_watch = laptop.watch(&home, "laptop-w", None).await;
+
+    let sent = phone.seal("r1", json!({ "type": "revokeCurrent" }));
+    assert_eq!(home.exchange(&phone, &sent).await["ok"], true);
+
+    let sealed = pushes.seal(&change(&home)).await;
+    assert_eq!(sealed.len(), 1, "only the laptop still watches");
+    assert_eq!(pushes_on(&sealed, &laptop_watch).len(), 1);
+
+    // A revoked client cannot register a new watch either.
+    let sent = phone.seal("phone-w2", json!({ "type": "watchCapabilityChanges" }));
+    assert_eq!(
+        error_code(&home.exchange(&phone, &sent).await),
+        "tombstoned_access_client"
+    );
+    assert_eq!(pushes.seal(&change(&home)).await.len(), 1);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn removing_a_member_ends_their_watches_at_once() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut owner = home.client("user_owner", "owner", 1).await;
+    let mut member = home.client("user_member", "member", 2).await;
+    let mut pushes = CapabilityPushes::new(home.state().clone());
+    let owner_watch = owner.watch(&home, "owner-w", None).await;
+    member.watch(&home, "member-w", None).await;
+
+    let member_id = {
+        let conn = home.state().db.get().await.unwrap();
+        conn.interact(|conn| {
+            members::table
+                .filter(members::user_id.eq("user_member"))
+                .select(members::id)
+                .first::<Uuid>(conn)
+        })
+        .await
+        .unwrap()
+        .unwrap()
+    };
+    let sent = owner.seal(
+        "r1",
+        json!({ "type": "removeMember", "memberId": member_id.to_string() }),
+    );
+    assert_eq!(home.exchange(&owner, &sent).await["ok"], true);
+
+    let sealed = pushes.seal(&change(&home)).await;
+    assert_eq!(sealed.len(), 1);
+    assert_eq!(pushes_on(&sealed, &owner_watch).len(), 1);
+}

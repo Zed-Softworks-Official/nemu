@@ -124,7 +124,16 @@ async fn handle(
     }
 
     let reply = match dispatch::parse_action(&opened.plaintext) {
-        Ok(action) => run(state, &caller, &opened.header, &opened.plaintext, action).await?,
+        Ok(action) => {
+            run(
+                state,
+                &caller,
+                (&opened.header, &opened.keys),
+                &opened.plaintext,
+                action,
+            )
+            .await?
+        }
         Err(rejection) => dispatch::rejection_reply(&rejection),
     };
     Ok(Some(seal(state, &opened.header, &opened.keys, &reply)))
@@ -161,14 +170,14 @@ async fn lookup(
 async fn run(
     state: &AppState,
     caller: &Caller,
-    header: &RequestHeader,
+    request: (&RequestHeader, &RequestKeys),
     plaintext: &[u8],
     action: RelayAction,
 ) -> Result<JsonValue, String> {
-    let request_id = header.request_id.as_str();
+    let request_id = request.0.request_id.as_str();
     let ledger_id = store::command_ledger_id(caller.id, request_id);
     if action.is_read() {
-        return Ok(dispatch::dispatch(state, &caller.auth, request_id, &ledger_id, action).await);
+        return Ok(dispatch::dispatch(state, &caller.auth, request, &ledger_id, action).await);
     }
 
     let claim = store::claim(
@@ -190,7 +199,7 @@ async fn run(
         // A Command's outcome lives in the Command ledger, which answers its
         // retry without dispatching again.
         Claim::Retry(None) if action.is_command() => {
-            Ok(dispatch::dispatch(state, &caller.auth, request_id, &ledger_id, action).await)
+            Ok(dispatch::dispatch(state, &caller.auth, request, &ledger_id, action).await)
         }
         Claim::Retry(None) => Ok(dispatch::error_message(
             "outcome_unknown",
@@ -198,8 +207,7 @@ async fn run(
         )),
         Claim::New => {
             let command = action.is_command();
-            let reply =
-                dispatch::dispatch(state, &caller.auth, request_id, &ledger_id, action).await;
+            let reply = dispatch::dispatch(state, &caller.auth, request, &ledger_id, action).await;
             if !command {
                 store::save_outcome(&state.db, caller.id, request_id, reply.to_string()).await?;
             }
