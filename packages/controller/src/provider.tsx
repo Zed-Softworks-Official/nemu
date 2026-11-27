@@ -52,6 +52,7 @@ import type { AccessClientKeyStore } from './access-client-keys.ts'
 import {
     ControllerConnection,
     type ControllerConnectors,
+    type PairingLoss,
 } from './connection.ts'
 import type { ReleaseUpdate, ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerCredentialStore } from './storage.ts'
@@ -60,6 +61,11 @@ import type { RelayApi } from './transports/relay.ts'
 type ControllerContextValue = {
     connection: ControllerConnection
     status: ConnectionStatus
+    /**
+     * Set when this client must pair again at home: its keys are lost, or
+     * the Controller revoked or no longer knows it. Needs a key store.
+     */
+    pairingLoss: PairingLoss | null
     reprobe: () => Promise<void>
     getDevices: () => Promise<Device[]>
     queryHistory: (query: HistoryQuery) => Promise<HistoryQueryRead>
@@ -208,6 +214,12 @@ export function ControllerProvider({
 
     useEffect(
         () => connection.subscribeReleaseUpdate(setReleaseUpdate),
+        [connection]
+    )
+
+    const [pairingLoss, setPairingLoss] = useState<PairingLoss | null>(null)
+    useEffect(
+        () => connection.subscribePairingLoss(setPairingLoss),
         [connection]
     )
 
@@ -373,6 +385,7 @@ export function ControllerProvider({
         () => ({
             connection,
             status,
+            pairingLoss,
             reprobe,
             getDevices,
             queryHistory,
@@ -416,6 +429,7 @@ export function ControllerProvider({
         [
             connection,
             status,
+            pairingLoss,
             reprobe,
             getDevices,
             queryHistory,

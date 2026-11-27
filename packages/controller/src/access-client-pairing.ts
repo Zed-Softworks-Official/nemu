@@ -1,26 +1,32 @@
 import { ApiError, type IdentifyResponse } from '@nemu/protocol'
-import type { ProbeResult } from './discovery.ts'
-import { WRONG_HOME_ERROR_CODE } from './pairing.ts'
 import {
-    type ControllerCredentialStore,
-    createMemoryCredentialStore,
-} from './storage.ts'
+    type AccessClientKeyStore,
+    stageAccessClientKeys,
+} from './access-client-keys.ts'
+import type { ProbeResult } from './discovery.ts'
+import { INVALID_GRANT_ERROR_CODE, WRONG_HOME_ERROR_CODE } from './pairing.ts'
 
 export type PairingHome = {
     controllerId: string
     name: string
 }
 
-export type PairingMethod = 'lan' | 'relay'
+/**
+ * Pairing always runs on the home network: CPace keyed by the Pairing code
+ * (ADR-0037). Relay never pairs a new Access Client.
+ */
+export type PairingMethod = 'lan'
 
 export type PairingFailureReason =
-    /** The Controller rejected the six-digit code. */
+    /** The Controller rejected the six-digit code, or was an impostor. */
     | 'invalid_code'
     /** The LAN Controller that answered is a different Home. */
     | 'wrong_home'
-    /** No Membership yet and the Home is not on this network (ADR-0020). */
+    /** The Home is not on this network; pairing needs it (ADR-0020). */
     | 'not_on_home_network'
-    /** Neither LAN nor Relay reached the Home. */
+    /** The Controller refused these keys: this Access Client was revoked. */
+    | 'revoked'
+    /** The Controller dropped off the network while pairing. */
     | 'unreachable'
     | 'unknown'
 
@@ -31,8 +37,6 @@ export type AccessClientPairingState =
           phase: 'awaitingCode'
           baseUrl: string
           controllerName: string
-          /** A Member can skip the code and pair over Relay instead. */
-          canUseRelay: boolean
       }
     | { phase: 'pairing'; method: PairingMethod }
     | { phase: 'paired'; controllerId: string; method: PairingMethod }
@@ -45,25 +49,23 @@ export type AccessClientPairingState =
 
 export type AccessClientPairingOptions = {
     home: PairingHome
-    /** The Account already holds a Membership in this Home. */
-    isMember: boolean
     /** LAN addresses for this Home only. */
     lanCandidates: string[]
-    /** Where the paired credential is kept. */
-    credentialStore: ControllerCredentialStore
+    /** Where the new Access Client keys and Access grant are kept. */
+    keyStore: AccessClientKeyStore
     discover: (candidates: string[]) => Promise<ProbeResult | null>
     identify: (baseUrl: string) => Promise<IdentifyResponse>
     /**
-     * Exchange a code on LAN (`pairWithController`). Writes the credential
-     * to `staging`; it is only kept if pairing is not cancelled.
+     * Run CPace pairing on LAN (`pairWithController` with `keyStore:
+     * staging`). The same exchange covers a new Access Client, accepting an
+     * Invitation and first-Owner bootstrap. What it saves to `staging` is
+     * kept only if pairing is not cancelled.
      */
     pairOnLan: (
         baseUrl: string,
         code: string,
-        staging: ControllerCredentialStore
+        staging: AccessClientKeyStore
     ) => Promise<void>
-    /** Mint a session over Relay (`mintSessionViaRelay`) for a Member. */
-    mintOverRelay?: (staging: ControllerCredentialStore) => Promise<void>
     /** Record the cloud Membership routing projection after LAN pairing. */
     recordMembership?: (controllerId: string) => Promise<void>
 }
@@ -71,11 +73,9 @@ export type AccessClientPairingOptions = {
 export type AccessClientPairing = {
     getState(): AccessClientPairingState
     subscribe(listener: (state: AccessClientPairingState) => void): () => void
-    /** Look for this Home on LAN, else pair a Member over Relay. */
+    /** Look for this Home on LAN. */
     start(): Promise<void>
     submitCode(code: string): Promise<void>
-    /** From `awaitingCode`, pair a Member over Relay instead. */
-    pairOverRelay(): Promise<void>
     /** Abandon in-flight work. Late results are discarded, not stored. */
     cancel(): void
     retry(): Promise<void>
@@ -87,9 +87,11 @@ const MESSAGES: Record<PairingFailureReason, string> = {
     wrong_home:
         'The Controller on this network belongs to a different Home. Join the Wi-Fi network of the Home you selected.',
     not_on_home_network:
-        'Join this Home’s Wi-Fi network to pair. Accepting a Home invitation requires being on its network.',
+        'Pair at home: join this Home’s Wi-Fi network and try again. Pairing, and accepting an invitation, need the Home network.',
+    revoked:
+        'This Home no longer accepts this device. Get a new 6-digit code from the Controller and pair again at home.',
     unreachable:
-        'Could not reach this Home on the local network or over the internet. Check that the Controller is on and try again.',
+        'Could not reach this Home on the local network. Check that the Controller is on and try again.',
     unknown: 'Pairing failed. Try again.',
 }
 
@@ -104,20 +106,19 @@ function lanFailure(err: unknown): AccessClientPairingState {
     if (err instanceof ApiError) {
         if (err.code === 'invalid_code') return failure('invalid_code')
         if (err.code === WRONG_HOME_ERROR_CODE) return failure('wrong_home')
+        if (err.code === 'tombstoned_access_client') return failure('revoked')
+        if (err.code === INVALID_GRANT_ERROR_CODE) {
+            return failure(
+                'unknown',
+                'The Controller answered with an Access grant that does not match this pairing. Try again.'
+            )
+        }
         if (err.code === 'network_error' || err.code === 'timeout') {
             return failure(
                 'unreachable',
                 'Lost the connection to the Controller while pairing. Stay on the Home network and try again.'
             )
         }
-    }
-    return failure('unknown', errorMessage(err))
-}
-
-function relayFailure(err: unknown): AccessClientPairingState {
-    // `mintSessionViaRelay` times out when the Controller never answers.
-    if (err instanceof Error && /timed out/i.test(err.message)) {
-        return failure('unreachable')
     }
     return failure('unknown', errorMessage(err))
 }
@@ -149,27 +150,25 @@ export function createAccessClientPairing(
 
     async function finish(
         id: number,
-        method: PairingMethod,
-        run: (staging: ControllerCredentialStore) => Promise<void>
+        run: (staging: AccessClientKeyStore) => Promise<void>
     ): Promise<void> {
+        const method: PairingMethod = 'lan'
         set({ phase: 'pairing', method })
-        const staging = createMemoryCredentialStore()
+        const staging = stageAccessClientKeys(options.keyStore)
         try {
-            await run(staging)
+            await run(staging.store)
         } catch (err) {
-            if (!current(id)) return
-            set(method === 'lan' ? lanFailure(err) : relayFailure(err))
+            if (current(id)) set(lanFailure(err))
             return
         }
         if (!current(id)) return
 
-        const credential = staging.get(home.controllerId)
-        if (!credential) {
+        if (staging.staged()?.enrollment.controllerId !== home.controllerId) {
             set(failure('wrong_home'))
             return
         }
 
-        if (method === 'lan' && options.recordMembership) {
+        if (options.recordMembership) {
             try {
                 await options.recordMembership(home.controllerId)
             } catch (err) {
@@ -179,17 +178,14 @@ export function createAccessClientPairing(
             if (!current(id)) return
         }
 
-        options.credentialStore.set(home.controllerId, credential)
-        set({ phase: 'paired', controllerId: home.controllerId, method })
-    }
-
-    async function relay(id: number): Promise<void> {
-        const mint = options.mintOverRelay
-        if (!options.isMember || !mint) {
-            set(failure('not_on_home_network'))
+        try {
+            await staging.commit()
+        } catch (err) {
+            if (current(id)) set(failure('unknown', errorMessage(err)))
             return
         }
-        await finish(id, 'relay', mint)
+        if (!current(id)) return
+        set({ phase: 'paired', controllerId: home.controllerId, method })
     }
 
     async function start(): Promise<void> {
@@ -216,8 +212,6 @@ export function createAccessClientPairing(
                         phase: 'awaitingCode',
                         baseUrl: probe.baseUrl,
                         controllerName: identity.name,
-                        canUseRelay:
-                            options.isMember && !!options.mintOverRelay,
                     })
                     return
                 }
@@ -227,10 +221,6 @@ export function createAccessClientPairing(
             }
         }
 
-        if (options.isMember && options.mintOverRelay) {
-            await relay(id)
-            return
-        }
         set(failure(wrongHome ? 'wrong_home' : 'not_on_home_network'))
     }
 
@@ -248,13 +238,9 @@ export function createAccessClientPairing(
             const baseUrl = lanBaseUrl
             if (state.phase !== 'awaitingCode' || !baseUrl) return
             const id = ++attempt
-            await finish(id, 'lan', (staging) =>
+            await finish(id, (staging) =>
                 options.pairOnLan(baseUrl, code.trim(), staging)
             )
-        },
-        async pairOverRelay() {
-            if (state.phase !== 'awaitingCode') return
-            await relay(++attempt)
         },
         cancel() {
             if (state.phase === 'paired') return
