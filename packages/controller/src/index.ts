@@ -10,6 +10,7 @@ export type {
 } from './access-client-keys.ts'
 export {
     accessClientKeysFromSecrets,
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
     createMemoryAccessClientKeyStore,
     createSecretAccessClientKeyStore,
     PAIR_AGAIN_ERROR_CODES,
@@ -49,19 +50,16 @@ export {
     TLS_TRUSTED_MESSAGE,
     upgradeToHttps,
 } from './discovery.ts'
-export type { LocalSessionAuth } from './http.ts'
+export type { ControllerHttpOptions, LocalSessionAuth } from './http.ts'
 export { createControllerHttp, toApiError } from './http.ts'
 export type { LocalSessionOptions } from './local-session.ts'
 export { LocalSession, NOT_PAIRED_ERROR_CODE } from './local-session.ts'
 export type {
     PairWithControllerInput,
     PairWithControllerResult,
-    PairWithKeysInput,
-    PairWithKeysResult,
 } from './pairing.ts'
 export {
     INVALID_GRANT_ERROR_CODE,
-    mintSessionViaRelay,
     pairWithController,
     WRONG_HOME_ERROR_CODE,
 } from './pairing.ts'
@@ -91,23 +89,12 @@ export type {
     ReleaseUpdateKind,
     ReleaseUpdateOutcome,
 } from './release-update.ts'
-export type {
-    AccessClientCredential,
-    ControllerCredentialStore,
-} from './storage.ts'
 export {
-    clearClientToken,
     clearRememberedBaseUrl,
     clearRememberedControllerId,
-    createLocalStorageCredentialStore,
-    createMemoryCredentialStore,
-    defaultCredentialStore,
-    getClientToken,
+    forgetLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
-    parseCredential,
-    serializeCredential,
-    setClientToken,
     setRememberedBaseUrl,
     setRememberedControllerId,
 } from './storage.ts'

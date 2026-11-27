@@ -1,12 +1,11 @@
 import {
+    type AccessClient,
     ApiError,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
+    accessClientsResponseSchema,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
-    type BootstrapOwnerRequest,
-    bootstrapOwnerRequestSchema,
-    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -60,16 +59,11 @@ import {
     sessionResponseSchema,
     switchReleaseChannelRequestSchema,
     switchReleaseChannelResponseSchema,
-    tokensResponseSchema,
     type UpdateStatusResponse,
     updateStatusResponseSchema,
 } from '@nemu/protocol'
 import type { AxiosInstance } from 'axios'
-import {
-    createControllerHttp,
-    type GetToken,
-    type LocalSessionAuth,
-} from '../http.ts'
+import { createControllerHttp, type LocalSessionAuth } from '../http.ts'
 import { isLoopbackHostname, isMixedContentUrl } from '../mixedContent.ts'
 import type { ControllerTransport } from './types.ts'
 
@@ -140,9 +134,10 @@ type PendingDesignation = {
 
 export type LanTransportOptions = {
     baseUrl: string
-    /** Bearer token, until NEM-131. Ignored when `localSession` is set. */
-    getToken?: GetToken
-    /** Authorizes HTTP and the WebSocket with a Local session (NEM-126). */
+    /**
+     * Authorizes HTTP and the WebSocket with a Local session (NEM-126).
+     * Without one, only public routes answer.
+     */
     localSession?: LocalSessionAuth
     commandTimeoutMs?: number
     reconnectBaseMs?: number
@@ -153,7 +148,6 @@ export class LanTransport implements ControllerTransport {
     readonly mode = 'lan' as const
 
     private readonly baseUrl: string
-    private readonly getToken: GetToken
     private readonly localSession: LocalSessionAuth | undefined
     private readonly commandTimeoutMs: number
     private readonly reconnectBaseMs: number
@@ -172,17 +166,13 @@ export class LanTransport implements ControllerTransport {
 
     constructor(options: LanTransportOptions) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '')
-        this.getToken = options.getToken ?? (() => null)
         this.localSession = options.localSession
         this.commandTimeoutMs = options.commandTimeoutMs ?? 10_000
         this.reconnectBaseMs = options.reconnectBaseMs ?? 500
         this.reconnectMaxMs = options.reconnectMaxMs ?? 15_000
-        this.http = createControllerHttp(
-            this.baseUrl,
-            this.getToken,
-            undefined,
-            this.localSession
-        )
+        this.http = createControllerHttp(this.baseUrl, {
+            localSession: this.localSession,
+        })
     }
 
     async connect(): Promise<void> {
@@ -423,29 +413,23 @@ export class LanTransport implements ControllerTransport {
         await this.http.delete(`/api/members/${encodeURIComponent(memberId)}`)
     }
 
-    async getTokens(): Promise<ClientToken[]> {
-        const { data } = await this.http.get('/api/tokens')
-        return tokensResponseSchema.parse(data).tokens
+    async listAccessClients(): Promise<AccessClient[]> {
+        const { data } = await this.http.get('/api/access-clients')
+        return accessClientsResponseSchema.parse(data).accessClients
     }
 
-    async revokeToken(tokenId: string): Promise<void> {
-        await this.http.delete(`/api/tokens/${encodeURIComponent(tokenId)}`)
+    async revokeAccessClient(accessClientId: string): Promise<void> {
+        await this.http.delete(
+            `/api/access-clients/${encodeURIComponent(accessClientId)}`
+        )
     }
 
-    async revokeCurrentToken(): Promise<void> {
-        await this.http.delete('/api/tokens/current')
+    async revokeCurrentAccessClient(): Promise<void> {
+        await this.http.delete('/api/access-clients/current')
     }
 
     async leaveHome(): Promise<void> {
         await this.http.post('/api/members/leave')
-    }
-
-    async bootstrapOwner(
-        request: BootstrapOwnerRequest
-    ): Promise<HouseholdMember> {
-        const body = bootstrapOwnerRequestSchema.parse(request)
-        const { data } = await this.http.post('/api/members/bootstrap', body)
-        return householdMemberSchema.parse(data)
     }
 
     /**
@@ -582,12 +566,9 @@ export class LanTransport implements ControllerTransport {
     private async socketUrl(wsUrl: string): Promise<string> {
         // Browsers cannot set headers on a WebSocket, so its credential
         // rides in the query.
-        if (this.localSession) {
-            const session = await this.localSession.token()
-            return `${wsUrl}?session=${encodeURIComponent(session)}`
-        }
-        const token = this.getToken()
-        return token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl
+        if (!this.localSession) return wsUrl
+        const session = await this.localSession.token()
+        return `${wsUrl}?session=${encodeURIComponent(session)}`
     }
 
     private async openSocket(): Promise<void> {

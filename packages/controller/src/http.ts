@@ -5,8 +5,6 @@ import axios, {
     isAxiosError,
 } from 'axios'
 
-export type GetToken = () => string | null
-
 /** A Local session source; see `LocalSession`. */
 export type LocalSessionAuth = {
     token(): Promise<string>
@@ -18,17 +16,20 @@ const LOCAL_SESSION_INVALID = 'local_session_invalid'
 
 type RetriedConfig = InternalAxiosRequestConfig & { localSessionRetried?: true }
 
+export type ControllerHttpOptions = {
+    timeoutMs?: number
+    localSession?: LocalSessionAuth
+}
+
 /**
  * HTTP to a LAN Controller. With `localSession`, requests carry
  * `Authorization: NemuSession`, and a refused session is renewed and the
- * request sent once more. Otherwise a bearer token from `getToken`, until
- * NEM-131 removes them.
+ * request sent once more. Without it, requests carry no credential: only
+ * public routes (identify, health, pairing) answer.
  */
 export function createControllerHttp(
     baseUrl: string,
-    getToken: GetToken,
-    timeoutMs = 5_000,
-    localSession?: LocalSessionAuth
+    { timeoutMs = 5_000, localSession }: ControllerHttpOptions = {}
 ): AxiosInstance {
     const client = axios.create({
         baseURL: baseUrl.replace(/\/$/, ''),
@@ -39,11 +40,6 @@ export function createControllerHttp(
     client.interceptors.request.use(async (config) => {
         if (localSession) {
             config.headers.Authorization = `NemuSession ${await localSession.token()}`
-            return config
-        }
-        const token = getToken()
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
         }
         return config
     })

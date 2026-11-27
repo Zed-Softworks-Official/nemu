@@ -179,7 +179,7 @@ export async function probeController(
     baseUrl: string,
     timeoutMs = 2_000
 ): Promise<ProbeResult> {
-    const http = createControllerHttp(baseUrl, () => null, timeoutMs)
+    const http = createControllerHttp(baseUrl, { timeoutMs })
     const { data } = await http.get('/api/health')
     const health = healthResponseSchema.parse(data)
     return { baseUrl: baseUrl.replace(/\/$/, ''), health }
@@ -189,7 +189,7 @@ export async function identifyController(
     baseUrl: string,
     timeoutMs = 3_000
 ): Promise<IdentifyResponse> {
-    const http = createControllerHttp(baseUrl, () => null, timeoutMs)
+    const http = createControllerHttp(baseUrl, { timeoutMs })
     const { data } = await http.get('/api/identify')
     return identifyResponseSchema.parse(data)
 }

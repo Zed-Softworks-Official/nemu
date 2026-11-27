@@ -3,10 +3,7 @@ import { describe, it } from 'node:test'
 
 import { assignRoomRequestSchema, deleteRoomRequestSchema } from './api.ts'
 import { deviceSchema } from './device.ts'
-import {
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
-} from './relay.ts'
+import { relayReplyMessageSchema, relayRequestMessageSchema } from './relay.ts'
 
 const lamp = {
     id: 'lamp',
@@ -35,21 +32,16 @@ describe('Device and Room setup requests over Relay', () => {
         { type: 'deleteRoom', roomId: 'den', destinationRoomId: null },
     ]) {
         it(`carries ${message.type} unchanged`, () => {
-            const envelope = relayToControllerEnvelopeSchema.parse({
-                requestId: 'r1',
-                clientToken: 't',
-                message,
-            })
-            assert.deepEqual(envelope.message, message)
+            const envelope = relayRequestMessageSchema.parse(message)
+            assert.deepEqual(envelope, message)
         })
     }
 
     it('rejects a Room deletion without a destination', () => {
         assert.equal(
-            relayToControllerEnvelopeSchema.safeParse({
-                requestId: 'r1',
-                clientToken: 't',
-                message: { type: 'deleteRoom', roomId: 'den' },
+            relayRequestMessageSchema.safeParse({
+                type: 'deleteRoom',
+                roomId: 'den',
             }).success,
             false
         )
@@ -57,10 +49,10 @@ describe('Device and Room setup requests over Relay', () => {
 
     it('rejects a rename without a name', () => {
         assert.equal(
-            relayToControllerEnvelopeSchema.safeParse({
-                requestId: 'r1',
-                clientToken: 't',
-                message: { type: 'renameDevice', deviceId: 'lamp', name: ' ' },
+            relayRequestMessageSchema.safeParse({
+                type: 'renameDevice',
+                deviceId: 'lamp',
+                name: ' ',
             }).success,
             false
         )
@@ -69,28 +61,23 @@ describe('Device and Room setup requests over Relay', () => {
 
 describe('Device and Room setup outcomes over Relay', () => {
     it('returns the updated Device in the same shape as LAN', () => {
-        const parsed = relayToClientEnvelopeSchema.parse({
-            requestId: 'r1',
-            signature: 's',
-            message: { type: 'device', device: lamp },
+        const parsed = relayReplyMessageSchema.parse({
+            type: 'device',
+            device: lamp,
         })
-        assert.equal(parsed.message.type, 'device')
+        assert.equal(parsed.type, 'device')
         assert.deepEqual(
-            parsed.message.type === 'device' && parsed.message.device,
+            parsed.type === 'device' && parsed.device,
             deviceSchema.parse(lamp)
         )
     })
 
     it('returns the created or renamed Room', () => {
-        const parsed = relayToClientEnvelopeSchema.parse({
-            requestId: 'r1',
-            signature: 's',
-            message: {
-                type: 'room',
-                room: { id: 'den', name: 'Den', sortOrder: 0 },
-            },
+        const parsed = relayReplyMessageSchema.parse({
+            type: 'room',
+            room: { id: 'den', name: 'Den', sortOrder: 0 },
         })
-        assert.deepEqual(parsed.message, {
+        assert.deepEqual(parsed, {
             type: 'room',
             room: { id: 'den', name: 'Den', sortOrder: 0 },
         })

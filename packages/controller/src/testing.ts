@@ -10,10 +10,10 @@
  * with progress events. Nothing touches the network.
  */
 import {
+    type AccessClient,
     ApiError,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
-    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -28,7 +28,6 @@ import {
     type HouseholdMember,
     type IdentifyResponse,
     type MatterWifiResponse,
-    type PairResponse,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
@@ -36,18 +35,18 @@ import {
     type RenameRoomRequest,
     type Room,
     type SaveMatterWifiRequest,
-    type SessionMintResult,
     type SessionResponse,
     type SessionRole,
     type UpdateStatusResponse,
 } from '@nemu/protocol'
-import type {
-    AccessClientKeyStore,
-    AccessClientRecord,
+import {
+    type AccessClientKeyStore,
+    type AccessClientRecord,
+    accessClientKeysFromSecrets,
+    createMemoryAccessClientKeyStore,
 } from './access-client-keys.ts'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
-import type { GetToken } from './http.ts'
 import type { ReleaseUpdateKind } from './release-update.ts'
 import type { ControllerTransport } from './transports/types.ts'
 
@@ -58,12 +57,12 @@ export type FakeControllerOptions = {
     baseUrl?: string
     lanReachable?: boolean
     relayReachable?: boolean
-    /** Six-digit code accepted by `pair`. */
+    /** Six-digit code accepted by `pairAccessClient`. */
     pairingCode?: string
-    /** Tokens already issued to this Membership's Access Clients. */
-    acceptedTokens?: string[]
-    /** Tokens held by other Memberships; leaving never revokes these. */
-    otherMembershipTokens?: string[]
+    /** Access Client IDs already paired to this Membership. */
+    acceptedAccessClients?: string[]
+    /** Access Client IDs of other Memberships; leaving never revokes these. */
+    otherMembershipAccessClients?: string[]
     devices?: Device[]
     rooms?: Room[]
     /** The designated Home meter, or null when none is set. */
@@ -124,8 +123,11 @@ export class FakeController {
     /** Device tombstones kept for removed Devices (ADR-0017). */
     readonly removedDevices: Device[] = []
     private createdRooms = 0
-    /** Every token any Access Client presented to this Controller. */
-    readonly presentedTokens: Array<string | null> = []
+    /**
+     * The Access Client ID behind every request, or null for a request made
+     * without keys. Never a bearer token: there are none.
+     */
+    readonly presentedAccessClientIds: Array<string | null> = []
     /** Set true to act as the Home's last Owner, who cannot leave. */
     lastOwner = false
     /** Transports that carried a successful `leaveHome`. */
@@ -151,7 +153,9 @@ export class FakeController {
     /** Household members the Controller lists. */
     members: HouseholdMember[] = []
     /** Access Clients the Controller lists. */
-    accessClients: ClientToken[] = []
+    accessClients: AccessClient[] = []
+    /** Access Client IDs revoked through `revokeAccessClient`, in order. */
+    readonly revokedAccessClients: string[] = []
     /** Installed Release status, or null when the Controller cannot read it. */
     releaseStatus: UpdateStatusResponse | null = null
 
@@ -180,10 +184,11 @@ export class FakeController {
     }> = []
     private reachableBeforeRestart: { lan: boolean; relay: boolean } | null =
         null
-    private readonly tokens: Set<string>
-    /** Access Clients paired with keys; revoking one leaves a tombstone. */
-    private readonly accessClientIds = new Set<string>()
-    private readonly otherMembershipTokens: Set<string>
+    /** Access Clients the Controller still accepts. */
+    private readonly active: Set<string>
+    /** Every Access Client ever paired; revoking one leaves a tombstone. */
+    private readonly paired: Set<string>
+    private readonly otherMembership: Set<string>
     private readonly transports = new Set<FakeTransport>()
     private issued = 0
 
@@ -194,13 +199,14 @@ export class FakeController {
         this.lanReachable = options.lanReachable ?? true
         this.relayReachable = options.relayReachable ?? true
         this.pairingCode = options.pairingCode ?? '123456'
-        this.otherMembershipTokens = new Set(
-            options.otherMembershipTokens ?? []
+        this.otherMembership = new Set(
+            options.otherMembershipAccessClients ?? []
         )
-        this.tokens = new Set([
-            ...(options.acceptedTokens ?? []),
-            ...this.otherMembershipTokens,
+        this.active = new Set([
+            ...(options.acceptedAccessClients ?? []),
+            ...this.otherMembership,
         ])
+        this.paired = new Set(this.active)
         this.devices = options.devices ?? []
         this.rooms = options.rooms ?? []
         this.homeMeter = options.homeMeter ?? null
@@ -223,19 +229,18 @@ export class FakeController {
         return { controllerId: this.controllerId, name: this.name }
     }
 
-    acceptsToken(token: string | null): boolean {
-        return token !== null && this.tokens.has(token)
+    accepts(accessClientId: string | null): boolean {
+        return accessClientId !== null && this.active.has(accessClientId)
     }
 
-    issueToken(): string {
+    /** Revokes an Access Client from the Controller's side; it is tombstoned. */
+    revokeAccessClient(accessClientId: string): void {
+        this.active.delete(accessClientId)
+    }
+
+    private nextAccessClientId(): string {
         this.issued += 1
-        const token = `${this.controllerId}-token-${this.issued}`
-        this.tokens.add(token)
-        return token
-    }
-
-    revokeToken(token: string): void {
-        this.tokens.delete(token)
+        return `${this.controllerId}-access-client-${this.issued}`
     }
 
     /**
@@ -256,9 +261,9 @@ export class FakeController {
                 401
             )
         }
-        const id = accessClientId ?? this.issueToken()
-        this.tokens.add(id)
-        this.accessClientIds.add(id)
+        const id = accessClientId ?? this.nextAccessClientId()
+        this.active.add(id)
+        this.paired.add(id)
         return { accessClientId: id, membershipId: 'membership' }
     }
 
@@ -266,12 +271,12 @@ export class FakeController {
     tombstoned(accessClientId: string | null): boolean {
         return (
             accessClientId !== null &&
-            this.accessClientIds.has(accessClientId) &&
-            !this.tokens.has(accessClientId)
+            this.paired.has(accessClientId) &&
+            !this.active.has(accessClientId)
         )
     }
 
-    /** `leaveHome`: ends this Membership and revokes all of its tokens. */
+    /** `leaveHome`: ends this Membership and revokes all of its Access Clients. */
     leaveHome(via: TransportMode): void {
         if (!this.membershipActive) {
             throw new ApiError(
@@ -287,49 +292,16 @@ export class FakeController {
                 403
             )
         }
-        for (const token of [...this.tokens]) {
-            if (!this.otherMembershipTokens.has(token)) {
-                this.tokens.delete(token)
-            }
+        for (const id of [...this.active]) {
+            if (!this.otherMembership.has(id)) this.active.delete(id)
         }
         this.leftVia.push(via)
     }
 
     /** `revokeCurrent`: revokes only the presenting Access Client. */
-    revokeCurrent(token: string, via: TransportMode): void {
-        this.tokens.delete(token)
+    revokeCurrent(accessClientId: string, via: TransportMode): void {
+        this.active.delete(accessClientId)
         this.revokedVia.push(via)
-    }
-
-    /** LAN code pairing, as `POST /api/pair` would answer. */
-    pair(code: string): PairResponse {
-        if (!this.lanReachable) {
-            throw new ApiError('network_error', 'Network Error')
-        }
-        if (code !== this.pairingCode) {
-            throw new ApiError(
-                'invalid_code',
-                'Pairing code is invalid or expired',
-                401
-            )
-        }
-        return {
-            clientToken: this.issueToken(),
-            controllerId: this.controllerId,
-        }
-    }
-
-    /** Session mint over Relay for an existing Membership. */
-    mintSession(): SessionMintResult {
-        if (!this.relayReachable) {
-            throw new Error(
-                'Timed out waiting for the controller to mint a session'
-            )
-        }
-        return {
-            clientToken: this.issueToken(),
-            controllerId: this.controllerId,
-        }
     }
 
     /** Deliver an event to every connected transport. */
@@ -711,8 +683,11 @@ export class FakeController {
         return [...this.transports]
     }
 
-    createTransport(mode: TransportMode, getToken: GetToken): FakeTransport {
-        return new FakeTransport(this, mode, getToken)
+    createTransport(
+        mode: TransportMode,
+        accessClientId: string | null
+    ): FakeTransport {
+        return new FakeTransport(this, mode, accessClientId)
     }
 
     /** @internal */
@@ -725,23 +700,19 @@ export class FakeController {
 export class FakeTransport implements ControllerTransport {
     readonly mode: TransportMode
     private readonly controller: FakeController
-    private readonly getToken: GetToken
+    /** The Access Client this transport acts for, or null without keys. */
+    readonly accessClientId: string | null
     private readonly listeners = new Set<(event: DeviceEvent) => void>()
     private failed = false
 
     constructor(
         controller: FakeController,
         mode: TransportMode,
-        getToken: GetToken
+        accessClientId: string | null
     ) {
         this.controller = controller
         this.mode = mode
-        this.getToken = getToken
-    }
-
-    /** The token this transport presents, for assertions. */
-    currentToken(): string | null {
-        return this.getToken()
+        this.accessClientId = accessClientId
     }
 
     async connect(): Promise<void> {
@@ -915,9 +886,9 @@ export class FakeTransport implements ControllerTransport {
         return this.controller.session()
     }
 
-    async revokeCurrentToken(): Promise<void> {
+    async revokeCurrentAccessClient(): Promise<void> {
         this.authorize()
-        this.controller.revokeCurrent(this.getToken() ?? '', this.mode)
+        this.controller.revokeCurrent(this.accessClientId ?? '', this.mode)
     }
 
     async leaveHome(): Promise<void> {
@@ -950,9 +921,15 @@ export class FakeTransport implements ControllerTransport {
         return structuredClone(this.controller.members)
     }
 
-    async getTokens(): Promise<ClientToken[]> {
+    async listAccessClients(): Promise<AccessClient[]> {
         this.authorize()
         return structuredClone(this.controller.accessClients)
+    }
+
+    async revokeAccessClient(accessClientId: string): Promise<void> {
+        this.authorize()
+        this.controller.revokeAccessClient(accessClientId)
+        this.controller.revokedAccessClients.push(accessClientId)
     }
 
     async getReleaseStatus(): Promise<UpdateStatusResponse> {
@@ -994,17 +971,24 @@ export class FakeTransport implements ControllerTransport {
         if (this.failed || !this.reachable()) {
             throw new ApiError('network_error', 'Network Error')
         }
-        const token = this.getToken()
-        this.controller.presentedTokens.push(token)
-        if (this.controller.tombstoned(token)) {
+        const id = this.accessClientId
+        this.controller.presentedAccessClientIds.push(id)
+        if (id === null) {
+            throw new ApiError('unauthorized', 'Missing Local session', 401)
+        }
+        if (this.controller.tombstoned(id)) {
             throw new ApiError(
                 'tombstoned_access_client',
                 'This Access Client was revoked',
                 401
             )
         }
-        if (!this.controller.acceptsToken(token)) {
-            throw new ApiError('unauthorized', 'Invalid client token', 401)
+        if (!this.controller.accepts(id)) {
+            throw new ApiError(
+                'unknown_access_client',
+                'This Controller does not know this Access Client',
+                401
+            )
         }
     }
 }
@@ -1063,28 +1047,18 @@ export function fakeControllerConnectors(
             }
             return controller.identity()
         },
-        createLanTransport({ baseUrl, getToken, accessClientId }) {
+        createLanTransport({ baseUrl, accessClientId }) {
             const controller = byBaseUrl(baseUrl)
             if (!controller) {
                 throw new ApiError('network_error', 'Network Error')
             }
-            return controller.createTransport(
-                'lan',
-                accessClientId !== undefined ? () => accessClientId : getToken
-            )
+            return controller.createTransport('lan', accessClientId)
         },
-        createRelayTransport({ controllerId, getToken, accessClientId }) {
+        createRelayTransport({ controllerId, accessClientId }) {
             const controller = controllers.find(
                 (candidate) => candidate.controllerId === controllerId
             )
-            return (
-                controller?.createTransport(
-                    'relay',
-                    accessClientId !== undefined
-                        ? () => accessClientId
-                        : getToken
-                ) ?? null
-            )
+            return controller?.createTransport('relay', accessClientId) ?? null
         },
     }
 }
@@ -1120,9 +1094,54 @@ export async function pairFakeAccessClient(
     return record
 }
 
+/** A placeholder enrollment; fake transports never check keys or grants. */
+function fakeRecord(
+    controllerId: string,
+    accessClientId: string,
+    seed: number
+): AccessClientRecord {
+    return {
+        keys: accessClientKeysFromSecrets(
+            new Uint8Array(32).fill(seed),
+            new Uint8Array(32).fill(seed + 1)
+        ),
+        enrollment: {
+            controllerId,
+            accessClientId,
+            membershipId: 'membership',
+            grant: 'fake.grant.signature',
+            controllerSigningKey: new Uint8Array(32).fill(1),
+            controllerEncryptionKey: new Uint8Array(32).fill(2),
+        },
+    }
+}
+
+/**
+ * A memory key store already holding keys for each Home, keyed by
+ * Controller ID: `{ 'home-a': 'client-a' }` is this client paired with
+ * `home-a` as Access Client `client-a`. Give the fake Controller the same ID
+ * in `acceptedAccessClients`.
+ */
+export function fakeAccessClientKeyStore(
+    enrolled: Record<string, string> = {}
+): AccessClientKeyStore {
+    const store = createMemoryAccessClientKeyStore()
+    const records = new Map(
+        Object.entries(enrolled).map(([controllerId, id], index) => [
+            controllerId,
+            fakeRecord(controllerId, id, 10 + 2 * index),
+        ])
+    )
+    return {
+        generate: () => store.generate(),
+        save: async (record) => {
+            records.set(record.enrollment.controllerId, record)
+        },
+        load: async (controllerId) => records.get(controllerId) ?? null,
+        clear: async (controllerId) => {
+            records.delete(controllerId)
+        },
+    }
+}
+
 export { createMemoryAccessClientKeyStore } from './access-client-keys.ts'
-export {
-    type AccessClientCredential,
-    type ControllerCredentialStore,
-    createMemoryCredentialStore,
-} from './storage.ts'

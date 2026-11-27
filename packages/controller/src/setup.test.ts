@@ -3,8 +3,8 @@ import { afterEach, describe, it } from 'node:test'
 import type { Device } from '@nemu/protocol'
 import { ControllerConnection } from './connection.ts'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from './testing.ts'
 
@@ -29,7 +29,7 @@ async function connected(
     via: 'lan' | 'relay',
     home = new FakeController({
         controllerId: 'home-a',
-        acceptedTokens: ['token-a'],
+        acceptedAccessClients: ['client-a'],
         devices: [lamp()],
         rooms: [
             { id: 'den', name: 'Den', sortOrder: 0 },
@@ -41,8 +41,8 @@ async function connected(
     const connection = new ControllerConnection({
         controllerId: 'home-a',
         reprobeIntervalMs: 60_000,
-        credentialStore: createMemoryCredentialStore({
-            'home-a': { clientToken: 'token-a' },
+        accessClientKeyStore: fakeAccessClientKeyStore({
+            'home-a': 'client-a',
         }),
         lanCandidates: [home.baseUrl],
         connectors: fakeControllerConnectors(home),

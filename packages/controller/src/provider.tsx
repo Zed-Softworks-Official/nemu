@@ -1,11 +1,10 @@
 'use client'
 
 import {
+    type AccessClient,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
-    type BootstrapOwnerRequest,
     type CapabilityView,
-    type ClientToken,
     type CommandResult,
     type CommissionRequest,
     type CommissionResponse,
@@ -55,7 +54,6 @@ import {
     type PairingLoss,
 } from './connection.ts'
 import type { ReleaseUpdate, ReleaseUpdateKind } from './release-update.ts'
-import type { ControllerCredentialStore } from './storage.ts'
 import type { RelayApi } from './transports/relay.ts'
 
 type ControllerContextValue = {
@@ -115,11 +113,12 @@ type ControllerContextValue = {
     getMembers: () => Promise<HouseholdMember[]>
     inviteMember: (email: string) => Promise<HouseholdMember>
     removeMember: (memberId: string) => Promise<void>
-    getTokens: () => Promise<ClientToken[]>
-    revokeToken: (tokenId: string) => Promise<void>
-    revokeCurrentToken: () => Promise<void>
+    /** The Home's Access Clients, each named by its Access Client ID. */
+    listAccessClients: () => Promise<AccessClient[]>
+    revokeAccessClient: (accessClientId: string) => Promise<void>
+    /** Revokes this Access Client only. */
+    revokeCurrentAccessClient: () => Promise<void>
     leaveHome: () => Promise<void>
-    bootstrapOwner: (request: BootstrapOwnerRequest) => Promise<HouseholdMember>
     getReleaseStatus: () => Promise<UpdateStatusResponse>
     /** The caller's Membership role, only for deciding what to show. */
     getSession: () => Promise<SessionResponse>
@@ -146,13 +145,14 @@ export type ControllerProviderProps = {
     children: ReactNode
     convex?: ConvexReactClient
     relayApi?: RelayApi
-    /** Access Client keys; Relay seals every request with them. */
-    accessClientKeyStore?: AccessClientKeyStore
+    /**
+     * This client's Access Client keys. Local sessions and sealed Relay
+     * requests are made with them; they are the only credential.
+     */
+    accessClientKeyStore: AccessClientKeyStore
     lanCandidates?: string[]
-    /** The selected Home. Scopes LAN discovery, Relay, and credentials. */
+    /** The selected Home. Scopes LAN discovery, Relay, and keys. */
     controllerId?: string | null
-    /** Per-Home Access Client credentials (default: localStorage). */
-    credentialStore?: ControllerCredentialStore
     /** Replace network access, e.g. with `fakeControllerConnectors`. */
     connectors?: Partial<ControllerConnectors>
     /** Use a prebuilt connection instead of building one from props. */
@@ -170,7 +170,6 @@ export function ControllerProvider({
     accessClientKeyStore,
     lanCandidates,
     controllerId,
-    credentialStore,
     connectors,
     connection: providedConnection,
     autoStart = true,
@@ -188,7 +187,6 @@ export function ControllerProvider({
                 accessClientKeyStore,
                 lanCandidates,
                 controllerId,
-                credentialStore,
                 connectors,
                 relayAllowed: () => relayAllowedRef.current,
             }),
@@ -199,7 +197,6 @@ export function ControllerProvider({
             accessClientKeyStore,
             lanCandidates,
             controllerId,
-            credentialStore,
             connectors,
         ]
     )
@@ -335,20 +332,20 @@ export function ControllerProvider({
         (memberId: string) => connection.removeMember(memberId),
         [connection]
     )
-    const getTokens = useCallback(() => connection.getTokens(), [connection])
-    const revokeToken = useCallback(
-        (tokenId: string) => connection.revokeToken(tokenId),
+    const listAccessClients = useCallback(
+        () => connection.listAccessClients(),
         [connection]
     )
-    const revokeCurrentToken = useCallback(
-        () => connection.revokeCurrentToken(),
+    const revokeAccessClient = useCallback(
+        (accessClientId: string) =>
+            connection.revokeAccessClient(accessClientId),
+        [connection]
+    )
+    const revokeCurrentAccessClient = useCallback(
+        () => connection.revokeCurrentAccessClient(),
         [connection]
     )
     const leaveHome = useCallback(() => connection.leaveHome(), [connection])
-    const bootstrapOwner = useCallback(
-        (request: BootstrapOwnerRequest) => connection.bootstrapOwner(request),
-        [connection]
-    )
     const getSession = useCallback(() => connection.getSession(), [connection])
     const getReleaseStatus = useCallback(
         () => connection.getReleaseStatus(),
@@ -411,11 +408,10 @@ export function ControllerProvider({
             getMembers,
             inviteMember,
             removeMember,
-            getTokens,
-            revokeToken,
-            revokeCurrentToken,
+            listAccessClients,
+            revokeAccessClient,
+            revokeCurrentAccessClient,
             leaveHome,
-            bootstrapOwner,
             getSession,
             getReleaseStatus,
             getHealthSummary,
@@ -455,11 +451,10 @@ export function ControllerProvider({
             getMembers,
             inviteMember,
             removeMember,
-            getTokens,
-            revokeToken,
-            revokeCurrentToken,
+            listAccessClients,
+            revokeAccessClient,
+            revokeCurrentAccessClient,
             leaveHome,
-            bootstrapOwner,
             getSession,
             getReleaseStatus,
             getHealthSummary,

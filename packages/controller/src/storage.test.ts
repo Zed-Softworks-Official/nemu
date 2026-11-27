@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import {
-    clearClientToken,
-    createLocalStorageCredentialStore,
-    createMemoryCredentialStore,
-    getClientToken,
+    forgetLegacyClientTokens,
+    getRememberedBaseUrl,
     getRememberedControllerId,
+    setRememberedBaseUrl,
+    setRememberedControllerId,
 } from './storage.ts'
 
 class MemoryStorage {
     private readonly items = new Map<string, string>()
+    get length(): number {
+        return this.items.size
+    }
+    key(index: number): string | null {
+        return [...this.items.keys()][index] ?? null
+    }
     getItem(key: string): string | null {
         return this.items.get(key) ?? null
     }
@@ -19,82 +25,58 @@ class MemoryStorage {
     removeItem(key: string): void {
         this.items.delete(key)
     }
+    keys(): string[] {
+        return [...this.items.keys()]
+    }
 }
 
 const globals = globalThis as { window?: unknown; localStorage?: unknown }
 
-describe('memory credential store', () => {
-    it('keeps one Access Client credential per Home', () => {
-        const store = createMemoryCredentialStore()
-        store.set('home-a', { clientToken: 'token-a' })
-        store.set('home-b', {
-            clientToken: 'token-b',
-            baseUrl: 'https://b.lan.nemu.sh:6368',
-        })
-
-        assert.deepEqual(store.get('home-a'), { clientToken: 'token-a' })
-        assert.equal(store.get('home-b')?.clientToken, 'token-b')
-
-        store.clear('home-a')
-        assert.equal(store.get('home-a'), null)
-        assert.equal(store.get('home-b')?.clientToken, 'token-b')
-    })
-})
-
-describe('localStorage credential store', () => {
+describe('the remembered Home', () => {
+    let storage: MemoryStorage
     beforeEach(() => {
+        storage = new MemoryStorage()
         globals.window = {}
-        globals.localStorage = new MemoryStorage()
+        globals.localStorage = storage
     })
     afterEach(() => {
         delete globals.window
         delete globals.localStorage
     })
 
-    it('keys credentials by Home', () => {
-        const store = createLocalStorageCredentialStore()
-        store.set('home-a', { clientToken: 'token-a' })
-        store.set('home-b', { clientToken: 'token-b' })
-
-        assert.equal(store.get('home-a')?.clientToken, 'token-a')
-        assert.equal(store.get('home-b')?.clientToken, 'token-b')
-    })
-
-    it('reads a credential saved before per-Home storage existed', () => {
-        const storage = globals.localStorage as MemoryStorage
-        storage.setItem('nemu.controller.clientToken', 'legacy-token')
-        storage.setItem('nemu.controller.id', 'home-a')
-        storage.setItem('nemu.controller.baseUrl', 'https://a.local:6368')
-
-        const store = createLocalStorageCredentialStore()
-        assert.deepEqual(store.get('home-a'), {
-            clientToken: 'legacy-token',
-            baseUrl: 'https://a.local:6368',
-        })
-        assert.equal(store.get('home-b'), null)
-    })
-
-    it('keeps the dashboard single-Home helpers in sync', () => {
-        const store = createLocalStorageCredentialStore()
-        store.set('home-a', { clientToken: 'token-a' })
-        assert.equal(getClientToken(), 'token-a')
+    it('remembers the Home and its LAN address, which are not credentials', () => {
+        setRememberedControllerId('home-a')
+        setRememberedBaseUrl('https://a.lan.nemu.sh:6368/')
         assert.equal(getRememberedControllerId(), 'home-a')
-
-        // Dashboard unpair clears the token first, then the remembered id.
-        clearClientToken()
-        assert.equal(store.get('home-a'), null)
+        assert.equal(getRememberedBaseUrl(), 'https://a.lan.nemu.sh:6368')
+        assert.deepEqual(storage.keys().sort(), [
+            'nemu.controller.baseUrl',
+            'nemu.controller.id',
+        ])
     })
-})
 
-describe('without browser storage', () => {
-    it('does not throw on React Native', () => {
-        globals.window = {}
-        try {
-            const store = createLocalStorageCredentialStore()
-            store.set('home-a', { clientToken: 'token-a' })
-            assert.equal(store.get('home-a'), null)
-        } finally {
-            delete globals.window
-        }
+    it('forgets every bearer token an alpha build left, and keeps the Home', () => {
+        setRememberedControllerId('home-a')
+        storage.setItem('nemu.controller.clientToken', 'token-a')
+        storage.setItem(
+            'nemu.controller.credential.home-a',
+            JSON.stringify({ clientToken: 'token-a' })
+        )
+        storage.setItem(
+            'nemu.controller.credential.home-b',
+            JSON.stringify({ clientToken: 'token-b' })
+        )
+
+        forgetLegacyClientTokens()
+
+        assert.deepEqual(storage.keys(), ['nemu.controller.id'])
+        assert.equal(getRememberedControllerId(), 'home-a')
+    })
+
+    it('does nothing without browser storage', () => {
+        delete globals.window
+        delete globals.localStorage
+        forgetLegacyClientTokens()
+        assert.equal(getRememberedControllerId(), null)
     })
 })

@@ -67,13 +67,20 @@ export interface AccessClientKeyStore {
 export const NOT_PAIRED_ERROR_CODE = 'not_paired'
 
 /**
+ * The Controller's refusal of a bearer token (NEM-131). This client never
+ * sends one; an alpha build that does must pair again at home.
+ */
+export const BEARER_TOKEN_RETIRED_ERROR_CODE = 'bearer_token_retired'
+
+/**
  * Error codes meaning this Access Client must pair again at home: it holds no
- * keys for the Home, or the Controller no longer knows or has revoked it. A
- * bad signature means the Controller does not hold the keys this client signs
- * with, so the same applies.
+ * keys for the Home, it presented a retired bearer token, or the Controller
+ * no longer knows or has revoked it. A bad signature means the Controller
+ * does not hold the keys this client signs with, so the same applies.
  */
 export const PAIR_AGAIN_ERROR_CODES = [
     NOT_PAIRED_ERROR_CODE,
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
     'unknown_access_client',
     'tombstoned_access_client',
     'bad_signature',
@@ -82,6 +89,18 @@ export const PAIR_AGAIN_ERROR_CODES = [
 ] as const
 
 export type PairAgainReason = (typeof PAIR_AGAIN_ERROR_CODES)[number]
+
+/**
+ * True when the Controller refused this client's keys, so they are worth
+ * nothing now. Holding no keys, or a refused bearer token, says nothing
+ * about the keys.
+ */
+export function keysRefused(reason: PairAgainReason): boolean {
+    return (
+        reason !== NOT_PAIRED_ERROR_CODE &&
+        reason !== BEARER_TOKEN_RETIRED_ERROR_CODE
+    )
+}
 
 /** The pair-again reason an error carries, or null for any other error. */
 export function pairAgainReason(error: unknown): PairAgainReason | null {

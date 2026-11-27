@@ -5,7 +5,6 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { ControllerConnection } from '../connection.ts'
 import { createMemoryRelayCounter } from '../relay-counter.ts'
-import { createMemoryCredentialStore } from '../storage.ts'
 import {
     FAKE_ACCESS_CLIENT_ID,
     FAKE_HOME_ID,
@@ -128,7 +127,7 @@ describe('RelayTransport seals every request', () => {
                     assert.equal('clientToken' in message, false)
                 }
                 assert.equal(
-                    JSON.stringify(mailbox.opened).includes('token'),
+                    JSON.stringify(mailbox.opened).includes('client'),
                     false
                 )
             }
@@ -470,8 +469,9 @@ describe('RelayTransport writes while disconnected', () => {
                 }),
             inviteMember: (relay) => relay.inviteMember('a@example.com'),
             removeMember: (relay) => relay.removeMember('m'),
-            revokeToken: (relay) => relay.revokeToken('t'),
-            revokeCurrentToken: (relay) => relay.revokeCurrentToken(),
+            revokeAccessClient: (relay) => relay.revokeAccessClient('ac'),
+            revokeCurrentAccessClient: (relay) =>
+                relay.revokeCurrentAccessClient(),
             leaveHome: (relay) => relay.leaveHome(),
         }
 
@@ -530,7 +530,6 @@ describe('Matter pairing codes and Wi-Fi credentials', () => {
         const connection = new ControllerConnection({
             reprobeIntervalMs: 60_000,
             controllerId: FAKE_HOME_ID,
-            credentialStore: createMemoryCredentialStore({}),
             accessClientKeyStore: mailbox.keyStore,
             connectors: {
                 discover: async () => null,
@@ -570,7 +569,6 @@ describe('ControllerConnection over Relay', () => {
         const connection = new ControllerConnection({
             reprobeIntervalMs: 60_000,
             controllerId: FAKE_HOME_ID,
-            credentialStore: createMemoryCredentialStore({}),
             convex: mailbox.convex,
             relayApi: FAKE_RELAY_API,
             accessClientKeyStore: mailbox.keyStore,
@@ -590,9 +588,6 @@ describe('ControllerConnection over Relay', () => {
         const connection = new ControllerConnection({
             reprobeIntervalMs: 60_000,
             controllerId: FAKE_HOME_ID,
-            credentialStore: createMemoryCredentialStore({
-                [FAKE_HOME_ID]: { clientToken: 'token-a' },
-            }),
             convex: mailbox.convex,
             relayApi: FAKE_RELAY_API,
             accessClientKeyStore: mailbox.keyStore,
@@ -656,7 +651,7 @@ describe('RelayTransport outcomes, as on LAN', () => {
             },
             async ({ relay }) => {
                 await assert.rejects(relay.leaveHome(), { code: 'last_owner' })
-                await assert.rejects(relay.revokeCurrentToken(), {
+                await assert.rejects(relay.revokeCurrentAccessClient(), {
                     code: 'last_owner',
                 })
                 await assert.rejects(relay.getDevices(), { code: 'last_owner' })

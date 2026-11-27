@@ -7,7 +7,6 @@ import { verifyGrant } from '@nemu/protocol/relay-crypto'
 import { createMemoryAccessClientKeyStore } from './access-client-keys.ts'
 import { FakeLanController } from './fake-lan-controller.ts'
 import { pairWithController } from './pairing.ts'
-import { createMemoryCredentialStore } from './storage.ts'
 
 const CODE = '135790'
 
@@ -35,13 +34,11 @@ describe('pairWithController with Access Client keys', () => {
     it('pairs with CPace and keeps the keys, the grant and the pinned Controller keys', async () => {
         const lan = await home()
         const keyStore = createMemoryAccessClientKeyStore()
-        const credentialStore = createMemoryCredentialStore()
 
         const result = await pairWithController(lan.baseUrl, {
             ...identity,
             code: CODE,
             keyStore,
-            credentialStore,
         })
 
         const record = await keyStore.load(lan.controllerId)
@@ -62,9 +59,8 @@ describe('pairWithController with Access Client keys', () => {
         assert.deepEqual(grant.signingKey, record.keys.signingKey)
         assert.deepEqual(grant.encryptionKey, record.keys.encryptionKey)
 
-        // The code never goes over the wire, and no bearer token is stored.
+        // The code never goes over the wire, and nothing asks for a bearer token.
         assert.equal(JSON.stringify(lan.requests).includes(CODE), false)
-        assert.equal(credentialStore.get(lan.controllerId), null)
         assert.deepEqual(
             lan.requests.map(
                 (r) =>

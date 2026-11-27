@@ -41,7 +41,7 @@ export class LocalSession {
     private opening: Promise<string> | null = null
 
     constructor(options: LocalSessionOptions) {
-        this.http = createControllerHttp(options.baseUrl, () => null, 8_000)
+        this.http = createControllerHttp(options.baseUrl, { timeoutMs: 8_000 })
         this.controllerId = options.controllerId
         this.keyStore = options.keyStore
         this.now = options.now ?? Date.now

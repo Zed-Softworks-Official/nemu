@@ -3,8 +3,8 @@ import { afterEach, describe, it } from 'node:test'
 import { ApiError } from '@nemu/protocol'
 import { ControllerConnection } from './connection.ts'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from './testing.ts'
 
@@ -30,7 +30,7 @@ describe('ControllerConnection for a selected Home', () => {
         const home = new FakeController({
             controllerId: 'home-a',
             baseUrl: 'https://a.lan.nemu.sh:6368',
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
             devices: [
                 {
                     id: 'lamp',
@@ -41,13 +41,13 @@ describe('ControllerConnection for a selected Home', () => {
                 },
             ],
         })
-        const credentialStore = createMemoryCredentialStore({
-            'home-a': { clientToken: 'token-a' },
-            'home-b': { clientToken: 'token-b' },
+        const accessClientKeyStore = fakeAccessClientKeyStore({
+            'home-a': 'client-a',
+            'home-b': 'client-b',
         })
         const connection = connect({
             controllerId: 'home-a',
-            credentialStore,
+            accessClientKeyStore,
             lanCandidates: [home.baseUrl],
             connectors: fakeControllerConnectors(home),
         })
@@ -61,17 +61,15 @@ describe('ControllerConnection for a selected Home', () => {
             devices.map((device) => device.id),
             ['lamp']
         )
-        assert.equal(
-            credentialStore.get('home-a')?.baseUrl,
-            'https://a.lan.nemu.sh:6368'
-        )
+        // Home A's keys, never Home B's.
+        assert.deepEqual(home.presentedAccessClientIds.at(-1), 'client-a')
     })
 
     it('does not attach to a LAN Controller from another Home', async () => {
         const selected = new FakeController({
             controllerId: 'home-a',
             lanReachable: false,
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         const neighbour = new FakeController({
             controllerId: 'home-b',
@@ -79,8 +77,8 @@ describe('ControllerConnection for a selected Home', () => {
         })
         const connection = connect({
             controllerId: 'home-a',
-            credentialStore: createMemoryCredentialStore({
-                'home-a': { clientToken: 'token-a' },
+            accessClientKeyStore: fakeAccessClientKeyStore({
+                'home-a': 'client-a',
             }),
             lanCandidates: ['http://nemu.local:6368'],
             connectors: fakeControllerConnectors(selected, neighbour),
@@ -91,19 +89,19 @@ describe('ControllerConnection for a selected Home', () => {
         assert.equal(connection.getStatus().mode, 'relay')
         assert.equal(connection.getStatus().controllerId, 'home-a')
         assert.equal(neighbour.connectedTransports().length, 0)
-        assert.deepEqual(neighbour.presentedTokens, [])
+        assert.deepEqual(neighbour.presentedAccessClientIds, [])
     })
 
     it('falls back to Relay with the selected Home credential', async () => {
         const home = new FakeController({
             controllerId: 'home-a',
             lanReachable: false,
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         const connection = connect({
             controllerId: 'home-a',
-            credentialStore: createMemoryCredentialStore({
-                'home-a': { clientToken: 'token-a' },
+            accessClientKeyStore: fakeAccessClientKeyStore({
+                'home-a': 'client-a',
             }),
             connectors: fakeControllerConnectors(home),
         })
@@ -112,7 +110,7 @@ describe('ControllerConnection for a selected Home', () => {
 
         assert.equal(connection.getStatus().mode, 'relay')
         const [relay] = home.connectedTransports()
-        assert.equal(relay?.currentToken(), 'token-a')
+        assert.equal(relay?.accessClientId, 'client-a')
         assert.deepEqual(await connection.getDevices(), [])
     })
 
@@ -123,7 +121,7 @@ describe('ControllerConnection for a selected Home', () => {
         })
         const connection = connect({
             controllerId: 'home-a',
-            credentialStore: createMemoryCredentialStore(),
+            accessClientKeyStore: fakeAccessClientKeyStore(),
             connectors: fakeControllerConnectors(home),
         })
 
@@ -137,13 +135,13 @@ describe('ControllerConnection for a selected Home', () => {
         const home = new FakeController({
             controllerId: 'home-a',
             lanReachable: false,
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         let allowed = false
         const connection = connect({
             controllerId: 'home-a',
-            credentialStore: createMemoryCredentialStore({
-                'home-a': { clientToken: 'token-a' },
+            accessClientKeyStore: fakeAccessClientKeyStore({
+                'home-a': 'client-a',
             }),
             relayAllowed: () => allowed,
             connectors: fakeControllerConnectors(home),
@@ -160,8 +158,8 @@ describe('ControllerConnection for a selected Home', () => {
     function lanSession(home: FakeController, reprobeIntervalMs?: number) {
         const connection = connect({
             controllerId: home.controllerId,
-            credentialStore: createMemoryCredentialStore({
-                [home.controllerId]: { clientToken: 'token-a' },
+            accessClientKeyStore: fakeAccessClientKeyStore({
+                [home.controllerId]: 'client-a',
             }),
             lanCandidates: [home.baseUrl],
             connectors: fakeControllerConnectors(home),
@@ -173,7 +171,7 @@ describe('ControllerConnection for a selected Home', () => {
     it('keeps the connection when the Controller refuses a Command', async () => {
         const home = new FakeController({
             controllerId: 'home-a',
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         home.commandResult = () => {
             throw new ApiError('unavailable', 'device is unavailable', 409)
@@ -191,7 +189,7 @@ describe('ControllerConnection for a selected Home', () => {
     it('drops LAN when a Command fails to reach the Controller', async () => {
         const home = new FakeController({
             controllerId: 'home-a',
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         home.commandResult = () => {
             throw new ApiError('network_error', 'Network Error')
@@ -210,19 +208,43 @@ describe('ControllerConnection for a selected Home', () => {
         const home = new FakeController({
             controllerId: 'home-a',
             lanReachable: false,
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         const connection = lanSession(home, 5)
         await connection.start()
         assert.equal(connection.getStatus().mode, 'relay')
 
-        // Discovery answers, but the Device check will be refused.
+        // Discovery answers, but the Device check fails.
         home.lanReachable = true
-        home.revokeToken('token-a')
+        home.devicesAvailable = false
         await new Promise((resolve) => setTimeout(resolve, 30))
         home.lanReachable = false
 
         assert.notEqual(connection.getStatus().mode, 'lan')
+    })
+
+    it('stays offline on the LAN once it must pair again', async () => {
+        const home = new FakeController({
+            controllerId: 'home-a',
+            lanReachable: false,
+            acceptedAccessClients: ['client-a'],
+        })
+        const connection = lanSession(home, 5)
+        await connection.start()
+        assert.equal(connection.getStatus().mode, 'relay')
+
+        // The Controller revoked this Access Client; the LAN upgrade check
+        // sees it, and later upgrades must not attach without keys.
+        home.lanReachable = true
+        home.revokeAccessClient('client-a')
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        assert.equal(connection.getStatus().mode, 'offline')
+        assert.equal(
+            connection.getPairingLoss()?.reason,
+            'tombstoned_access_client'
+        )
+        assert.equal(home.presentedAccessClientIds.includes(null), false)
     })
 
     it('notices Relay coming back while offline', async () => {
@@ -230,7 +252,7 @@ describe('ControllerConnection for a selected Home', () => {
             controllerId: 'home-a',
             lanReachable: false,
             relayReachable: false,
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         const connection = lanSession(home, 5)
         await connection.start()
@@ -245,7 +267,7 @@ describe('ControllerConnection for a selected Home', () => {
     it('leaves nothing running when stopped during the first probe', async () => {
         const home = new FakeController({
             controllerId: 'home-a',
-            acceptedTokens: ['token-a'],
+            acceptedAccessClients: ['client-a'],
         })
         const connection = lanSession(home, 5)
 
@@ -262,8 +284,8 @@ describe('Leaving a Home and Access Client revocation', () => {
         function session(home: FakeController) {
             return connect({
                 controllerId: home.controllerId,
-                credentialStore: createMemoryCredentialStore({
-                    [home.controllerId]: { clientToken: 'phone' },
+                accessClientKeyStore: fakeAccessClientKeyStore({
+                    [home.controllerId]: 'phone',
                 }),
                 lanCandidates: [home.baseUrl],
                 connectors: fakeControllerConnectors(home),
@@ -275,8 +297,8 @@ describe('Leaving a Home and Access Client revocation', () => {
                 controllerId: 'home-a',
                 lanReachable: mode === 'lan',
                 // This Membership's phone and browser, and another Member.
-                acceptedTokens: ['phone', 'browser'],
-                otherMembershipTokens: ['someone-else'],
+                acceptedAccessClients: ['phone', 'browser'],
+                otherMembershipAccessClients: ['someone-else'],
             })
         }
 
@@ -286,11 +308,11 @@ describe('Leaving a Home and Access Client revocation', () => {
             await connection.start()
             assert.equal(connection.getStatus().mode, mode)
 
-            await connection.revokeCurrentToken()
+            await connection.revokeCurrentAccessClient()
 
-            assert.equal(controller.acceptsToken('phone'), false)
-            assert.equal(controller.acceptsToken('browser'), true)
-            assert.equal(controller.acceptsToken('someone-else'), true)
+            assert.equal(controller.accepts('phone'), false)
+            assert.equal(controller.accepts('browser'), true)
+            assert.equal(controller.accepts('someone-else'), true)
         })
 
         it(`leaves the Home and revokes every Access Client of the Membership over ${mode}`, async () => {
@@ -300,9 +322,9 @@ describe('Leaving a Home and Access Client revocation', () => {
 
             await connection.leaveHome()
 
-            assert.equal(controller.acceptsToken('phone'), false)
-            assert.equal(controller.acceptsToken('browser'), false)
-            assert.equal(controller.acceptsToken('someone-else'), true)
+            assert.equal(controller.accepts('phone'), false)
+            assert.equal(controller.accepts('browser'), false)
+            assert.equal(controller.accepts('someone-else'), true)
             assert.deepEqual(controller.leftVia, [mode])
         })
 
@@ -315,7 +337,7 @@ describe('Leaving a Home and Access Client revocation', () => {
             await assert.rejects(connection.leaveHome(), {
                 code: 'last_owner',
             })
-            assert.equal(controller.acceptsToken('phone'), true)
+            assert.equal(controller.accepts('phone'), true)
         })
     }
 })

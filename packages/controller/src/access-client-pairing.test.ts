@@ -64,7 +64,7 @@ describe('Access Client pairing for the selected Home', () => {
         assert.equal(state.phase, 'paired')
         const record = await keyStore.load('home-a')
         assert.ok(record)
-        assert.ok(home.acceptsToken(record.enrollment.accessClientId))
+        assert.ok(home.accepts(record.enrollment.accessClientId))
         assert.deepEqual(memberships, ['home-a'])
     })
 

@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import {
+    accessClientSchema,
     applyUpdateRequestSchema,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
-    clientTokenSchema,
     commissionResponseSchema,
     createRoomRequestSchema,
     deleteRoomRequestSchema,
@@ -61,14 +61,6 @@ const relaySnapshotMessageSchema = z.object({
     devices: z.array(z.unknown()),
 })
 
-const sessionMintMessageSchema = z.object({
-    type: z.literal('sessionMint'),
-    userId: z.string(),
-    email: z.string(),
-    clientLabel: z.string(),
-    displayName: z.string().optional(),
-})
-
 /** Device and Room setup. Same requests and outcomes as LAN (ADR-0023). */
 const setupRelayMessageSchemas = [
     renameDeviceRequestSchema.extend({ type: z.literal('renameDevice') }),
@@ -121,8 +113,13 @@ export const relayRequestMessageSchema = z.union([
     z.object({ type: z.literal('listMembers') }),
     z.object({ type: z.literal('inviteMember'), email: z.string() }),
     z.object({ type: z.literal('removeMember'), memberId: z.string() }),
-    z.object({ type: z.literal('listTokens') }),
-    z.object({ type: z.literal('revokeToken'), tokenId: z.string() }),
+    /** The Home's Access Clients, by Access Client ID. */
+    z.object({ type: z.literal('listAccessClients') }),
+    /** Revokes one Access Client by its Access Client ID. */
+    z.object({
+        type: z.literal('revokeAccessClient'),
+        accessClientId: z.string(),
+    }),
     /** Access Client revocation: only the calling Access Client loses access. */
     z.object({ type: z.literal('revokeCurrent') }),
     /** Leaving a Home: ends the caller's own Membership. */
@@ -179,8 +176,8 @@ export const relayReplyMessageSchema = z.union([
         member: householdMemberSchema,
     }),
     z.object({
-        type: z.literal('tokens'),
-        tokens: z.array(clientTokenSchema),
+        type: z.literal('accessClients'),
+        accessClients: z.array(accessClientSchema),
     }),
     capabilitySnapshotEventSchema,
     capabilityChangeEventSchema,
@@ -208,56 +205,3 @@ export const relayReplyMessageSchema = z.union([
     memberHealthSummarySchema.extend({ type: z.literal('healthSummary') }),
 ])
 export type RelayReplyMessage = z.infer<typeof relayReplyMessageSchema>
-
-/**
- * @deprecated The plaintext Relay envelope. Relay requests are sealed now
- * (NEM-129) and carry a {@link RelayRequestMessage}; no bearer token is ever
- * sent. Kept only for `mintSessionViaRelay` and message-shape tests until
- * NEM-131 deletes session mints.
- */
-export const relayToControllerEnvelopeSchema = z.union([
-    z.object({
-        requestId: z.string(),
-        message: sessionMintMessageSchema,
-    }),
-    z.object({
-        requestId: z.string(),
-        clientToken: z.string(),
-        /**
-         * Unix milliseconds after which the sender gave up on a write. The
-         * Controller refuses it from then on, so a write Convex held while
-         * disconnected does not run later. Older Controllers ignore it.
-         */
-        expiresAt: z.number().int().optional(),
-        message: relayRequestMessageSchema,
-    }),
-])
-export type RelayToControllerEnvelope = z.infer<
-    typeof relayToControllerEnvelopeSchema
->
-
-/**
- * @deprecated The plaintext Relay reply. Replies are sealed now (NEM-129)
- * and carry a {@link RelayReplyMessage}. Kept only for `mintSessionViaRelay`
- * and message-shape tests until NEM-131 deletes session mints.
- */
-export const relayToClientEnvelopeSchema = z.object({
-    requestId: z.string(),
-    signature: z.string(),
-    message: z.union([
-        relayReplyMessageSchema,
-        z.object({
-            type: z.literal('sessionMintResult'),
-            clientToken: z.string(),
-            controllerId: z.string(),
-        }),
-    ]),
-})
-export type RelayToClientEnvelope = z.infer<typeof relayToClientEnvelopeSchema>
-
-/** @deprecated See {@link relayToControllerEnvelopeSchema}. */
-export const relayEnvelopeSchema = z.union([
-    relayToControllerEnvelopeSchema,
-    relayToClientEnvelopeSchema,
-])
-export type RelayEnvelope = z.infer<typeof relayEnvelopeSchema>
