@@ -6,11 +6,7 @@ import {
     useConvexAuth,
     useQuery,
 } from '@nemu/cloud'
-import {
-    mintSessionViaRelay,
-    pairWithController,
-    type RelayApi,
-} from '@nemu/controller'
+import { pairWithController, type RelayApi } from '@nemu/controller'
 import * as Device from 'expo-device'
 import { useEffect, useMemo, useRef } from 'react'
 
@@ -21,8 +17,8 @@ import {
 } from '~/components/home-session'
 import { env } from '~/env'
 import {
+    createSecureAccessClientKeyStore,
     createSecureActiveHomeStore,
-    createSecureCredentialStore,
     createSecureHomeListStore,
 } from '~/lib/secure-credential-store'
 
@@ -30,19 +26,13 @@ const convex = new ConvexReactClient(
     env.EXPO_PUBLIC_CONVEX_URL.replace(/\/$/, '')
 )
 
-// Sealed envelopes only (ADR-0001): RelayTransport seals with this client's
-// Access Client keys, which NEM-130 stores on each platform.
+// Sealed envelopes only (ADR-0001): RelayTransport seals every request with
+// this phone's Access Client keys from the secure store.
 const relayApi: RelayApi = {
     send: api.relay.send,
     responses: api.relay.responses,
     acknowledge: api.relay.acknowledge,
 }
-
-const sessionMintApi = {
-    request: api.sessionMints.request,
-    responses: api.relay.responses,
-    acknowledge: api.relay.acknowledge,
-} as unknown as Parameters<typeof mintSessionViaRelay>[0]['api']
 
 function clientLabel(): string {
     return Device.deviceName ?? Device.modelName ?? 'Nemu mobile'
@@ -102,8 +92,11 @@ function AccountHomes(props: { accountId: string; children: React.ReactNode }) {
 
     const services = useMemo<HomeSessionServices>(
         () => ({
-            credentialStore: createSecureCredentialStore(accountId),
+            accessClientKeyStore: createSecureAccessClientKeyStore(accountId),
             activeHomeStore: createSecureActiveHomeStore(accountId),
+            // CPace on the Pairing code (ADR-0037). The Controller decides
+            // whether this pairs a Member's new phone, accepts an Invitation
+            // or makes the first Owner.
             pairOnLan: async (home, baseUrl, code, staging) => {
                 const current = userRef.current
                 const email = current?.primaryEmailAddress?.emailAddress
@@ -119,21 +112,7 @@ function AccountHomes(props: { accountId: string; children: React.ReactNode }) {
                     email,
                     displayName: current.fullName ?? undefined,
                     expectedControllerId: home.controllerId,
-                    credentialStore: staging,
-                })
-            },
-            mintOverRelay: async (home, staging) => {
-                // Convex would hold the request until reconnect.
-                if (!convex.connectionState().isWebSocketConnected) {
-                    throw new Error('Timed out: not connected to the Relay')
-                }
-                await mintSessionViaRelay({
-                    convex,
-                    api: sessionMintApi,
-                    controllerId: home.controllerId,
-                    clientLabel: clientLabel(),
-                    displayName: userRef.current?.fullName ?? undefined,
-                    credentialStore: staging,
+                    keyStore: staging,
                 })
             },
             recordMembership: async (controllerId) => {

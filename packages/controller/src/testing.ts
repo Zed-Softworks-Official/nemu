@@ -242,13 +242,24 @@ export class FakeController {
      * CPace pairing with Access Client keys, as `/api/pairing/runs` would
      * answer. The fake authorizes key clients by their Access Client ID.
      */
-    pairAccessClient(code: string): {
+    pairAccessClient(
+        code: string,
+        accessClientId?: string
+    ): {
         accessClientId: string
         membershipId: string
     } {
-        const { clientToken } = this.pair(code)
-        this.accessClientIds.add(clientToken)
-        return { accessClientId: clientToken, membershipId: 'membership' }
+        if (code !== this.pairingCode) {
+            throw new ApiError(
+                'invalid_code',
+                'Pairing code is invalid or expired',
+                401
+            )
+        }
+        const id = accessClientId ?? this.issueToken()
+        this.tokens.add(id)
+        this.accessClientIds.add(id)
+        return { accessClientId: id, membershipId: 'membership' }
     }
 
     /** True for an Access Client ID this Controller tombstoned. */
@@ -1087,10 +1098,13 @@ export function fakeControllerConnectors(
 export async function pairFakeAccessClient(
     controller: FakeController,
     keyStore: AccessClientKeyStore,
-    code: string = controller.pairingCode
+    options: { code?: string; accessClientId?: string } = {}
 ): Promise<AccessClientRecord> {
     const keys = await keyStore.generate()
-    const { accessClientId, membershipId } = controller.pairAccessClient(code)
+    const { accessClientId, membershipId } = controller.pairAccessClient(
+        options.code ?? controller.pairingCode,
+        options.accessClientId
+    )
     const record: AccessClientRecord = {
         keys,
         enrollment: {

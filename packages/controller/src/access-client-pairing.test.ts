@@ -38,7 +38,7 @@ function setup(
         discover: (candidates) => connectors.discover(candidates, null),
         identify: connectors.identify,
         pairOnLan: async (_baseUrl, code, staging) => {
-            await pairFakeAccessClient(controller, staging, code)
+            await pairFakeAccessClient(controller, staging, { code })
         },
         recordMembership: async (controllerId) => {
             memberships.push(controllerId)
@@ -175,7 +175,7 @@ describe('Access Client pairing for the selected Home', () => {
         const { pairing, keyStore, memberships } = setup(home, {
             pairOnLan: async (_baseUrl, code, staging) => {
                 await gate.promise
-                await pairFakeAccessClient(home, staging, code)
+                await pairFakeAccessClient(home, staging, { code })
             },
         })
 
