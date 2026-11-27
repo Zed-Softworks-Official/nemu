@@ -85,8 +85,6 @@ describe('RelayTransport writes while disconnected', () => {
             revokeToken: (relay) => relay.revokeToken('t'),
             revokeCurrentToken: (relay) => relay.revokeCurrentToken(),
             leaveHome: (relay) => relay.leaveHome(),
-            bootstrapOwner: (relay) =>
-                relay.bootstrapOwner({ userId: 'u', email: 'a@example.com' }),
         }
 
     for (const [name, write] of Object.entries(writes)) {

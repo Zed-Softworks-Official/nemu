@@ -652,10 +652,10 @@ export class ControllerConnection {
         request: BootstrapOwnerRequest
     ): Promise<HouseholdMember> {
         const transport = this.requireConnectedTransport('Household setup')
+        // First-Owner setup pairs on the home network (NEM-126), so Relay
+        // has no bootstrapOwner.
         if (!transport.bootstrapOwner) {
-            throw new Error(
-                'Household setup is not supported by this controller'
-            )
+            throw new Error('Set up the first Owner on the home network')
         }
         return await transport.bootstrapOwner(request)
     }
