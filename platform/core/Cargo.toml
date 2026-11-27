@@ -39,6 +39,10 @@ tower-http = { version = "0.7.0", features = ["cors"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 uuid = { version = "1.23.4", features = ["v4", "serde"] }
+curve25519-dalek = "5.0.0"
+hkdf = "0.13.0"
+hmac = "0.13.0"
+subtle = "2.6.1"
 
 [dev-dependencies]
 tokio-test = "0.4.4"
