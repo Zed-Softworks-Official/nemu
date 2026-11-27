@@ -89,7 +89,7 @@ describe('PairingGate', () => {
         const keyStore = keys.store
         if (!keyStore) throw new Error('no key store')
         const record = await pairFakeAccessClient(controller, keyStore)
-        controller.revokeToken(record.enrollment.accessClientId)
+        controller.revokeAccessClient(record.enrollment.accessClientId)
 
         renderGate(controller)
 

@@ -42,7 +42,7 @@ function lake(
     return new FakeController({
         controllerId: 'lake',
         name: 'Lake House',
-        acceptedTokens: ['phone'],
+        acceptedAccessClients: ['phone'],
         role,
         ...reachable,
     })

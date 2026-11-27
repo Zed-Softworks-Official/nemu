@@ -1,7 +1,7 @@
 import { ControllerProvider, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type {
@@ -122,13 +122,14 @@ async function renderEnergy(
     controller: FakeController,
     refresh?: { everyMs?: number; now?: () => Date }
 ) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     await render(
         <ControllerProvider
+            accessClientKeyStore={accessClientKeyStore}
             connectors={fakeControllerConnectors(controller)}
             controllerId={controller.controllerId}
-            credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             <CaptureReprobe />
@@ -167,7 +168,7 @@ describe.each([
     }) {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             lanReachable,
             homeMeter:
                 options?.homeMeter === undefined ? METER : options.homeMeter,
@@ -306,7 +307,7 @@ describe('refreshing today’s energy while the screen is open', () => {
     function home() {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             homeMeter: METER,
         })
         controller.history = fullDay
@@ -355,7 +356,7 @@ it('shows no figures when the Controller was never reached', async () => {
     await renderEnergy(
         new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             lanReachable: false,
             relayReachable: false,
             homeMeter: METER,

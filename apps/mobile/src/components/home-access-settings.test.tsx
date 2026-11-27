@@ -56,8 +56,8 @@ describe.each([
             controllerId: 'lake',
             lanReachable,
             // This Membership's dashboard browser; the phone pairs below.
-            acceptedTokens: ['browser'],
-            otherMembershipTokens: ['someone-else'],
+            acceptedAccessClients: ['browser'],
+            otherMembershipAccessClients: ['someone-else'],
         })
     }
 
@@ -81,8 +81,8 @@ describe.each([
 
         await screen.findByText('Pair with Lake House')
         expect(controller.revokedVia).toEqual([mode])
-        expect(controller.acceptsToken('phone')).toBe(false)
-        expect(controller.acceptsToken('browser')).toBe(true)
+        expect(controller.accepts('phone')).toBe(false)
+        expect(controller.accepts('browser')).toBe(true)
         expect(await paired('lake')).toBeNull()
         expect(await paired('city')).toBe('city-phone')
     })
@@ -103,8 +103,8 @@ describe.each([
 
         await screen.findByText('Choose a Home')
         expect(controller.leftVia).toEqual([mode])
-        expect(controller.acceptsToken('browser')).toBe(false)
-        expect(controller.acceptsToken('someone-else')).toBe(true)
+        expect(controller.accepts('browser')).toBe(false)
+        expect(controller.accepts('someone-else')).toBe(true)
         expect(await paired('lake')).toBeNull()
         expect(await paired('city')).toBe('city-phone')
     })
@@ -133,7 +133,7 @@ describe.each([
             name: 'Remove this phone from Lake House',
         })
         // Revoked elsewhere, e.g. by an Owner, while this screen was open.
-        controller.revokeToken('phone')
+        controller.revokeAccessClient('phone')
 
         await fireEvent.press(
             screen.getByRole('button', {
@@ -168,8 +168,8 @@ describe.each([
         ).toBeTruthy()
         expect(controller.leftVia).toEqual([])
         // The phone still revoked its own Access Client on the way out.
-        expect(controller.acceptsToken('phone')).toBe(false)
-        expect(controller.acceptsToken('browser')).toBe(true)
+        expect(controller.accepts('phone')).toBe(false)
+        expect(controller.accepts('browser')).toBe(true)
         expect(await paired('lake')).toBeNull()
     })
 
@@ -217,6 +217,6 @@ describe('Settings when the Controller is unreachable over LAN and Relay', () =>
         expect(await paired('lake')).toBeNull()
         expect(await paired('city')).toBe('city-phone')
         // Nothing was revoked on the Controller.
-        expect(controller.acceptsToken('phone')).toBe(true)
+        expect(controller.accepts('phone')).toBe(true)
     })
 })

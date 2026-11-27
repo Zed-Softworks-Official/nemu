@@ -4,7 +4,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import RoomsPage from './page'
@@ -40,7 +40,7 @@ const STRIP: Device = {
 function home(options?: { lanReachable?: boolean; withKitchen?: boolean }) {
     return new FakeController({
         controllerId: 'lake',
-        acceptedTokens: [DASHBOARD_TOKEN],
+        acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
         lanReachable: options?.lanReachable ?? true,
         devices: [structuredClone(LAMP), structuredClone(STRIP)],
         rooms: [

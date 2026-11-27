@@ -6,7 +6,6 @@ import {
     type ControllerConnectors,
     ControllerProvider,
     createAccessClientPairing,
-    createMemoryCredentialStore,
     discoverController,
     identifyController,
     lanDiscoveryCandidates,
@@ -277,9 +276,6 @@ export function HomeSessionProvider({
                 connectors={connectors}
                 controllerId={activeHome?.controllerId ?? null}
                 convex={convex}
-                // Keys only: no bearer token is read or written (NEM-131
-                // removes the credential store).
-                credentialStore={noCredentials}
                 key={activeHome?.controllerId ?? 'no-home'}
                 lanCandidates={lanCandidates}
                 relayAllowed={relayAllowed}
@@ -297,8 +293,6 @@ export function HomeSessionProvider({
     )
 }
 
-const noCredentials = createMemoryCredentialStore()
-
 /** What the pairing screen says after this phone lost access to a Home. */
 export function pairAgainNotice(
     reason: PairAgainReason,
@@ -306,6 +300,9 @@ export function pairAgainNotice(
 ): string {
     if (reason === 'not_paired') {
         return `This phone’s keys for ${homeName} are gone. Pair it again at home.`
+    }
+    if (reason === 'bearer_token_retired') {
+        return `Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using ${homeName}.`
     }
     return `This phone no longer has access to ${homeName}. It may have been removed. Pair it again at home.`
 }

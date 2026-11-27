@@ -49,7 +49,7 @@ describe.each([
             controllerId: 'lake',
             name: 'Lake House',
             lanReachable,
-            acceptedTokens: ['phone'],
+            acceptedAccessClients: ['phone'],
             role,
         })
         controller.releaseStatus = structuredClone(NEWER)
@@ -113,7 +113,7 @@ describe('Settings Release while offline', () => {
             name: 'Lake House',
             lanReachable: false,
             relayReachable: false,
-            acceptedTokens: ['phone'],
+            acceptedAccessClients: ['phone'],
             role: 'owner',
         })
         controller.releaseStatus = structuredClone(NEWER)

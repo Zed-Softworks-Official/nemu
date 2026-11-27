@@ -3,17 +3,17 @@
 import { useUser } from '@clerk/nextjs'
 import { api, useConvexAuth, useMutation, useQuery } from '@nemu/cloud'
 import {
-    clearClientToken,
     clearRememberedBaseUrl,
     clearRememberedControllerId,
     createControllerHttp,
+    forgetLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     LocalSession,
     useController,
 } from '@nemu/controller'
 import {
-    type ClientToken,
+    type AccessClient,
     type HouseholdMember,
     type PairingCodeResponse,
     pairingCodeResponseSchema,
@@ -62,10 +62,9 @@ export default function SettingsPage() {
         getMembers,
         inviteMember,
         removeMember,
-        getTokens,
-        revokeToken,
-        revokeCurrentToken,
-        bootstrapOwner,
+        listAccessClients,
+        revokeAccessClient,
+        revokeCurrentAccessClient,
         getReleaseStatus,
         installRelease,
         rollbackRelease,
@@ -88,7 +87,7 @@ export default function SettingsPage() {
     const connected = status.mode === 'lan' || status.mode === 'relay'
 
     const [members, setMembers] = useState<HouseholdMember[]>([])
-    const [tokens, setTokens] = useState<ClientToken[]>([])
+    const [accessClients, setAccessClients] = useState<AccessClient[]>([])
     const [householdError, setHouseholdError] = useState<string | null>(null)
     const [inviteEmail, setInviteEmail] = useState('')
     const [inviteHint, setInviteHint] = useState<string | null>(null)
@@ -128,45 +127,25 @@ export default function SettingsPage() {
     const loadHousehold = useCallback(async () => {
         if (!connected) {
             setMembers([])
-            setTokens([])
+            setAccessClients([])
             return
         }
         try {
-            const [nextMembers, nextTokens] = await Promise.all([
+            // Pairing bootstraps the first Owner, so a paired Home always
+            // has Members here.
+            const [nextMembers, nextAccessClients] = await Promise.all([
                 getMembers(),
-                getTokens(),
+                listAccessClients(),
             ])
             setMembers(nextMembers)
-            setTokens(nextTokens)
+            setAccessClients(nextAccessClients)
             setHouseholdError(null)
-
-            if (
-                nextMembers.length === 0 &&
-                user?.id &&
-                user.primaryEmailAddress?.emailAddress
-            ) {
-                await bootstrapOwner({
-                    userId: user.id,
-                    email: user.primaryEmailAddress.emailAddress,
-                    displayName: user.fullName ?? undefined,
-                })
-                const bootstrapped = await getMembers()
-                setMembers(bootstrapped)
-            }
         } catch (err) {
             setHouseholdError(
                 err instanceof Error ? err.message : 'Failed to load household'
             )
         }
-    }, [
-        bootstrapOwner,
-        connected,
-        getMembers,
-        getTokens,
-        user?.fullName,
-        user?.id,
-        user?.primaryEmailAddress?.emailAddress,
-    ])
+    }, [connected, getMembers, listAccessClients])
 
     useEffect(() => {
         void loadHousehold()
@@ -328,9 +307,9 @@ export default function SettingsPage() {
         }
     }
 
-    async function handleRevoke(tokenId: string) {
+    async function handleRevoke(accessClientId: string) {
         try {
-            await revokeToken(tokenId)
+            await revokeAccessClient(accessClientId)
             await loadHousehold()
         } catch (err) {
             setHouseholdError(
@@ -351,16 +330,13 @@ export default function SettingsPage() {
                 throw new Error('This browser is not paired with a Home.')
             }
             // Signed in with this browser's keys (a Local session).
-            const http = createControllerHttp(
-                baseUrl,
-                () => null,
-                undefined,
-                new LocalSession({
+            const http = createControllerHttp(baseUrl, {
+                localSession: new LocalSession({
                     baseUrl,
                     controllerId,
                     keyStore: dashboardKeyStore,
-                })
-            )
+                }),
+            })
             const { data } = await http.post('/api/pairing-code')
             setInviteCode(pairingCodeResponseSchema.parse(data))
         } catch (err) {
@@ -379,7 +355,7 @@ export default function SettingsPage() {
         if (controllerId && controllerId !== '—') {
             await dashboardKeyStore.clear(controllerId).catch(() => {})
         }
-        clearClientToken()
+        forgetLegacyClientTokens()
         clearRememberedBaseUrl()
         clearRememberedControllerId()
     }
@@ -389,7 +365,7 @@ export default function SettingsPage() {
         try {
             if (connected) {
                 try {
-                    await revokeCurrentToken()
+                    await revokeCurrentAccessClient()
                 } catch {
                     // Local credentials still need to be cleared.
                 }
@@ -706,26 +682,26 @@ export default function SettingsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {tokens.length === 0 ? (
+                            {accessClients.length === 0 ? (
                                 <p className="text-muted-foreground text-sm">
                                     {connected
                                         ? 'No paired devices found.'
                                         : 'Connect to the controller to manage devices.'}
                                 </p>
                             ) : (
-                                tokens.map((token, index) => (
-                                    <div key={token.id}>
+                                accessClients.map((client, index) => (
+                                    <div key={client.id}>
                                         {index > 0 ? (
                                             <Separator className="mb-4" />
                                         ) : null}
                                         <ClientRow
                                             detail={deviceDetail(
-                                                token,
+                                                client,
                                                 members
                                             )}
-                                            name={token.label}
+                                            name={client.label}
                                             onRevoke={() =>
-                                                void handleRevoke(token.id)
+                                                void handleRevoke(client.id)
                                             }
                                         />
                                     </div>
@@ -956,14 +932,17 @@ function CoreUpdatesBlock({
     )
 }
 
-function deviceDetail(token: ClientToken, members: HouseholdMember[]): string {
-    const owner = token.userId
-        ? members.find((member) => member.userId === token.userId)
+function deviceDetail(
+    client: AccessClient,
+    members: HouseholdMember[]
+): string {
+    const owner = client.userId
+        ? members.find((member) => member.userId === client.userId)
         : undefined
     const who = owner?.displayName || owner?.email || 'Unknown device'
-    const seen = token.lastSeenAt
-        ? `Last active ${new Date(token.lastSeenAt).toLocaleString()}`
-        : `Paired ${new Date(token.createdAt).toLocaleString()}`
+    const seen = client.lastSeenAt
+        ? `Last active ${new Date(client.lastSeenAt).toLocaleString()}`
+        : `Paired ${new Date(client.createdAt).toLocaleString()}`
     return `${who} · ${seen}`
 }
 

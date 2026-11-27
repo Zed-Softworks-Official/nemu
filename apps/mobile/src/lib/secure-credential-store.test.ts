@@ -1,10 +1,7 @@
 import { utf8Encode } from '@nemu/protocol/relay-crypto'
 import * as SecureStore from 'expo-secure-store'
 
-import {
-    createSecureAccessClientKeyStore,
-    createSecureCredentialStore,
-} from '~/lib/secure-credential-store'
+import { createSecureAccessClientKeyStore } from '~/lib/secure-credential-store'
 
 const reset = (SecureStore as unknown as { __reset: () => void }).__reset
 
@@ -41,15 +38,15 @@ describe('Access Client keys in the secure store', () => {
         expect(await reopened.load('city')).toBeNull()
     })
 
-    it('treats a bearer-token credential as unpaired and removes it', async () => {
-        createSecureCredentialStore('user_alice').set('lake', {
-            clientToken: 'nemu_old',
-        })
+    it('treats an alpha bearer token as unpaired and deletes it', async () => {
+        // Where alpha builds kept the token for this Account and Home.
+        const legacy = 'nemu.user_alice.access-client.lake'
+        SecureStore.setItem(legacy, JSON.stringify({ clientToken: 'nemu_old' }))
         const store = createSecureAccessClientKeyStore('user_alice')
 
         expect(await store.load('lake')).toBeNull()
         await Promise.resolve()
-        expect(createSecureCredentialStore('user_alice').get('lake')).toBeNull()
+        expect(SecureStore.getItem(legacy)).toBeNull()
     })
 
     it('forgets one Home', async () => {

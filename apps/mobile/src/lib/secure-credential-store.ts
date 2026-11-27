@@ -1,10 +1,6 @@
 import {
-    type AccessClientCredential,
     type AccessClientKeyStore,
-    type ControllerCredentialStore,
     createSecretAccessClientKeyStore,
-    parseCredential,
-    serializeCredential,
 } from '@nemu/controller'
 import * as SecureStore from 'expo-secure-store'
 
@@ -36,8 +32,8 @@ const KEY_OPTIONS: SecureStore.SecureStoreOptions = {
  * and Home, in the Keychain or Keystore. The crypto runs in JS on Hermes;
  * the operating system wraps the stored key bytes.
  *
- * A bearer-token credential from before Access Client keys loads as
- * unpaired and is removed, so the phone asks to pair again.
+ * A bearer token an alpha build kept for the Home is deleted when the Home
+ * has no keys, so the phone asks to pair again and holds no token.
  */
 export function createSecureAccessClientKeyStore(
     accountId: string
@@ -67,45 +63,6 @@ export function createSecureAccessClientKeyStore(
                 )
             }
             return record
-        },
-    }
-}
-
-/**
- * Bearer-token Access Client credentials in the device keychain, one per
- * Home. Kept only to read old credentials until NEM-131; the app pairs with
- * keys (`createSecureAccessClientKeyStore`).
- * Reads go through a memory cache because transports read the token on
- * every request and SecureStore only deletes asynchronously.
- */
-export function createSecureCredentialStore(
-    accountId: string
-): ControllerCredentialStore {
-    const secureKey = (controllerId: string) =>
-        accountKey(accountId, `access-client.${secureSegment(controllerId)}`)
-    const cache = new Map<string, AccessClientCredential | null>()
-    return {
-        get(controllerId) {
-            if (!cache.has(controllerId)) {
-                cache.set(
-                    controllerId,
-                    parseCredential(
-                        SecureStore.getItem(secureKey(controllerId))
-                    )
-                )
-            }
-            return cache.get(controllerId) ?? null
-        },
-        set(controllerId, credential) {
-            SecureStore.setItem(
-                secureKey(controllerId),
-                serializeCredential(credential)
-            )
-            cache.set(controllerId, { ...credential })
-        },
-        clear(controllerId) {
-            cache.set(controllerId, null)
-            void SecureStore.deleteItemAsync(secureKey(controllerId))
         },
     }
 }
