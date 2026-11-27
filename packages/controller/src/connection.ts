@@ -166,8 +166,8 @@ export class ControllerConnection {
     private readonly releaseUpdates: ReleaseUpdateFollower
     private pairingLoss: PairingLoss | null = null
     private readonly pairingLossListeners = new Set<PairingLossListener>()
-    /** Forgetting revoked keys, which `connect` waits for. */
-    private forgetting: Promise<void> | null = null
+    /** Clearing refused keys, which `connect` waits for. */
+    private clearingKeys: Promise<void> | null = null
 
     constructor(options: ControllerConnectionOptions) {
         this.options = options
@@ -861,7 +861,7 @@ export class ControllerConnection {
     /**
      * Watches every call on `transport` for the errors that mean this client
      * must pair again at home. The caller still gets the error; the
-     * connection forgets refused keys and stays offline.
+     * connection clears refused keys and stays offline.
      */
     private watchAccess(transport: ControllerTransport): ControllerTransport {
         const notice = (error: unknown) => this.noticeAccessError(error)
@@ -885,7 +885,7 @@ export class ControllerConnection {
         if (!reason || !controllerId) return
         // The Controller refused these keys, so they are worth nothing now.
         if (keysRefused(reason)) {
-            this.forgetting = keyStore.clear(controllerId).catch(() => {})
+            this.clearingKeys = keyStore.clear(controllerId).catch(() => {})
         }
         this.setPairingLoss({ controllerId, reason })
         this.teardownTransport()
@@ -899,7 +899,7 @@ export class ControllerConnection {
     private async recoveredFromPairingLoss(): Promise<boolean> {
         const loss = this.pairingLoss
         if (!loss) return true
-        await this.forgetting
+        await this.clearingKeys
         const record = await this.keyStore.load(loss.controllerId)
         if (!record) return false
         this.setPairingLoss(null)

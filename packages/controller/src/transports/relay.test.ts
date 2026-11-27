@@ -3,6 +3,10 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import {
+    ed25519PublicKey,
+    type SealedRequest,
+} from '@nemu/protocol/relay-crypto'
 import { ControllerConnection } from '../connection.ts'
 import { createMemoryRelayCounter } from '../relay-counter.ts'
 import {
@@ -220,6 +224,114 @@ describe('RelayTransport checks every reply against the pinned key', () => {
                 await until(() => mailbox.stored.length === 0)
                 assert.ok(mailbox.acks.flat().includes(forged))
                 assert.ok(mailbox.acks.flat().includes(genuine))
+            }
+        )
+    })
+})
+
+/** A connection over `relay` alone, whose pairing losses are recorded. */
+async function connectionOver(
+    mailbox: FakeRelayMailbox,
+    relay: RelayTransport
+): Promise<ControllerConnection> {
+    const connection = new ControllerConnection({
+        reprobeIntervalMs: 60_000,
+        controllerId: FAKE_HOME_ID,
+        accessClientKeyStore: mailbox.keyStore,
+        connectors: {
+            discover: async () => null,
+            createRelayTransport: () => relay,
+        },
+    })
+    await connection.start()
+    assert.equal(connection.getStatus().mode, 'relay')
+    return connection
+}
+
+describe('RelayTransport keeps its keys whatever Convex does to a request', () => {
+    const flipLast = (text: string) =>
+        `${text.slice(0, -2)}${text.at(-2) === 'A' ? 'B' : 'A'}${text.at(-1)}`
+    const rewrites = {
+        'a new counter': (sealed: SealedRequest): SealedRequest => ({
+            ...sealed,
+            header: { ...sealed.header, counter: sealed.header.counter + 7 },
+        }),
+        'a later expiry': (sealed: SealedRequest): SealedRequest => ({
+            ...sealed,
+            header: {
+                ...sealed.header,
+                expiresAt: sealed.header.expiresAt + 1,
+            },
+        }),
+        'a flipped signature byte': (sealed: SealedRequest): SealedRequest => ({
+            ...sealed,
+            signature: flipLast(sealed.signature),
+        }),
+    }
+
+    for (const [name, rewrite] of Object.entries(rewrites)) {
+        it(`a request rewritten with ${name} earns no reply that drops the keys`, async () => {
+            const { mailbox, relay } = await relayWith({
+                answer: answering({ type: 'rooms', rooms }),
+                commandTimeoutMs: 200,
+            })
+            // Even a Controller that answers a bad signature, signed with
+            // its real key, cannot answer the request the client sent.
+            mailbox.answersBadSignatures = true
+            mailbox.tamperRequest = (sealed) =>
+                sealed.header.requestId ===
+                mailbox.wire.at(-1)?.header.requestId
+                    ? rewrite(sealed)
+                    : sealed
+            const connection = await connectionOver(mailbox, relay)
+            try {
+                await assert.rejects(connection.getRooms(), /timed out/)
+                assert.ok(
+                    mailbox.stored.length > 0 || mailbox.acks.flat().length > 0,
+                    'the Controller answered the rewritten request'
+                )
+                assert.equal(connection.getPairingLoss(), null)
+                assert.ok(
+                    await mailbox.keyStore.load(FAKE_HOME_ID),
+                    'keys kept'
+                )
+            } finally {
+                connection.stop()
+            }
+        })
+    }
+
+    it('a genuine bad_signature refusal is not a reason to pair again', async () => {
+        const { mailbox, relay } = await relayWith({
+            answer: answering({ type: 'rooms', rooms }),
+        })
+        mailbox.answersBadSignatures = true
+        // The Controller holds another key for this Access Client.
+        mailbox.heldSigningKey = ed25519PublicKey(new Uint8Array(32).fill(5))
+        const connection = await connectionOver(mailbox, relay)
+        try {
+            await assert.rejects(connection.getRooms(), {
+                code: 'bad_signature',
+            })
+            assert.equal(connection.getPairingLoss(), null)
+            assert.ok(await mailbox.keyStore.load(FAKE_HOME_ID), 'keys kept')
+        } finally {
+            connection.stop()
+        }
+    })
+
+    it('Core drops a bad signature, so the request just times out', async () => {
+        await withRelay(
+            {
+                answer: answering({ type: 'rooms', rooms }),
+                commandTimeoutMs: 150,
+            },
+            async ({ mailbox, relay }) => {
+                mailbox.heldSigningKey = ed25519PublicKey(
+                    new Uint8Array(32).fill(5)
+                )
+                await assert.rejects(relay.getRooms(), /timed out/)
+                assert.equal(mailbox.stored.length, 0)
             }
         )
     })

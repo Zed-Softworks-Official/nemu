@@ -39,7 +39,7 @@ import type { RelayApi } from './relay.ts'
  * with the real `@nemu/protocol/relay-crypto` checks (Home, epoch, expiry,
  * Access Client, signature, replay window), answers it, and seals and signs
  * the reply, as Core's Relay handler does. Refused requests are answered the
- * way Core answers them. A `watchCapabilityChanges` it acknowledges
+ * way Core answers them: a bad signature is dropped unanswered. A `watchCapabilityChanges` it acknowledges
  * becomes a live watch, which `push` seals capability events to under the
  * watch's exported key and next counter, as Core's push loop does.
  */
@@ -57,6 +57,13 @@ export const FAKE_ACCESS_CLIENT_ID = '11111111-2222-4333-8444-555555555555'
 type Stored =
     | { _id: string; kind: 'response'; sealed: SealedResponse }
     | { _id: string; kind: 'push'; sealed: SealedPush }
+
+type Pending = {
+    sealed: SealedRequest
+    header: RequestHeader
+    keys: RequestKeys
+    message: { type: string } & Record<string, unknown>
+}
 
 /** A capability watch the Controller holds, as Core does. */
 type FakeWatch = { header: RequestHeader; keys: RequestKeys; counter: number }
@@ -93,6 +100,21 @@ export class FakeRelayMailbox {
     paired = true
     /** Rewrites a reply before Convex stores it (an attacker in the cloud). */
     tamper: ((sealed: SealedResponse) => SealedResponse) | null = null
+    /**
+     * Rewrites a request after Convex stored it and before the Controller
+     * reads it (an attacker in the cloud).
+     */
+    tamperRequest: ((sealed: SealedRequest) => SealedRequest) | null = null
+    /**
+     * Answers a bad signature with a signed `bad_signature` refusal, as Core
+     * did before it dropped them.
+     */
+    answersBadSignatures = false
+    /**
+     * The Access Client signing key the Controller holds, when it is not the
+     * one the client signs with.
+     */
+    heldSigningKey: Uint8Array | null = null
     /** Signs replies with another key (an impostor Controller). */
     impostor = false
     failAcknowledge = false
@@ -108,11 +130,7 @@ export class FakeRelayMailbox {
     /** Live capability watches, oldest first. */
     readonly watches: FakeWatch[] = []
     private nextId = 0
-    private pending: Array<{
-        header: RequestHeader
-        keys: RequestKeys
-        message: { type: string } & Record<string, unknown>
-    }> = []
+    private pending: Pending[] = []
 
     constructor(options: FakeRelayMailboxOptions = {}) {
         this.answer = options.answer ?? (() => undefined)
@@ -163,6 +181,8 @@ export class FakeRelayMailbox {
                 accountId: 'user-1',
                 state: 'active',
                 sequence: (this.projection?.projection.sequence ?? 0) + 1,
+                accessClientIds:
+                    overrides.state === 'ended' ? [] : [FAKE_ACCESS_CLIENT_ID],
                 ...overrides,
             },
             ed25519Signer(
@@ -184,7 +204,7 @@ export class FakeRelayMailbox {
         if (!pending) throw new Error(`no pending request ${requestId}`)
         this.pending.splice(index, 1)
         this.registerWatch(pending.message, pending.header, pending.keys, reply)
-        return await this.store(pending.header, pending.keys, reply)
+        return await this.store(pending.sealed, pending.keys, reply)
     }
 
     /** Request IDs of the live watches, oldest first. */
@@ -338,7 +358,9 @@ export class FakeRelayMailbox {
             const sealed = args.sealed as SealedRequest
             // Convex keeps nothing but the sealed envelope.
             this.wire.push(structuredClone(sealed))
-            await this.controller(sealed)
+            await this.controller(
+                this.tamperRequest ? this.tamperRequest(sealed) : sealed
+            )
             return `request-${this.wire.length}`
         },
         query: async (
@@ -388,7 +410,8 @@ export class FakeRelayMailbox {
                     id === record.enrollment.accessClientId
                         ? {
                               status: 'active',
-                              signingKey: record.keys.signingKey,
+                              signingKey:
+                                  this.heldSigningKey ?? record.keys.signingKey,
                           }
                         : { status: 'unknown' },
                 window: this.window,
@@ -401,7 +424,7 @@ export class FakeRelayMailbox {
                 sealed,
                 controllerEncryptionSecret: this.controllerEncryptionSecret,
             })
-            await this.store(sealed.header, keys, reply)
+            await this.store(sealed, keys, reply)
             return
         }
         this.window = opened.window
@@ -411,13 +434,14 @@ export class FakeRelayMailbox {
         this.registerWatch(message, opened.header, opened.keys, reply)
         if (reply === undefined) {
             this.pending.push({
+                sealed,
                 header: opened.header,
                 keys: opened.keys,
                 message,
             })
             return
         }
-        await this.store(opened.header, opened.keys, reply)
+        await this.store(sealed, opened.keys, reply)
     }
 
     /** Core's answer to a request refused before decryption. */
@@ -442,15 +466,16 @@ export class FakeRelayMailbox {
                 return error('request_expired')
             case 'unknown_access_client':
             case 'tombstoned_access_client':
-            case 'bad_signature':
                 return error(code)
+            case 'bad_signature':
+                return this.answersBadSignatures ? error(code) : undefined
             default:
                 return undefined
         }
     }
 
     private async store(
-        header: RequestHeader,
+        request: SealedRequest,
         keys: RequestKeys,
         reply: unknown
     ): Promise<string> {
@@ -460,7 +485,7 @@ export class FakeRelayMailbox {
                 : this.controllerSigningSecret
         )
         let sealed = await sealResponse({
-            request: header,
+            request,
             keys,
             plaintext: utf8Encode(JSON.stringify(reply)),
             controllerSigner: signer,

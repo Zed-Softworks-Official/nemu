@@ -26,7 +26,9 @@ use crate::relay_crypto::cpace::{
 };
 use crate::relay_crypto::grant::verify_grant;
 use crate::relay_crypto::hpke;
-use crate::relay_crypto::session::{LocalSessionChallenge, sign_challenge};
+use crate::relay_crypto::session::{
+    LanRefusal, LocalSessionChallenge, refusal_message, sign_challenge,
+};
 use crate::relay_crypto::wire::{b64url_decode, b64url_encode};
 use crate::state::{AppState, DbPool, HealthFlags};
 
@@ -294,6 +296,17 @@ pub(super) async fn open_session(
     home: &Home,
     client: &Client,
 ) -> Result<String, (StatusCode, String)> {
+    open_session_with_nonce(home, client, &[5u8; 32])
+        .await
+        .map_err(|(status, body)| (status, body["error"]["code"].as_str().unwrap().to_string()))
+}
+
+/// Opens a Local session; on refusal, the status and the error body.
+async fn open_session_with_nonce(
+    home: &Home,
+    client: &Client,
+    client_nonce: &[u8; 32],
+) -> Result<String, (StatusCode, Value)> {
     let (_, challenge) = home
         .call("POST", "/api/local-sessions/challenge", None, None)
         .await;
@@ -315,11 +328,12 @@ pub(super) async fn open_session(
                 "accessClientId": client.access_client_id,
                 "nonce": b64url_encode(&nonce),
                 "signature": b64url_encode(&signature),
+                "clientNonce": b64url_encode(client_nonce),
             })),
         )
         .await;
     if status != StatusCode::CREATED {
-        return Err((status, body["error"]["code"].as_str().unwrap().to_string()));
+        return Err((status, body));
     }
     assert_eq!(body["expiresInSeconds"], 600);
     Ok(format!("NemuSession {}", body["session"].as_str().unwrap()))
@@ -645,7 +659,7 @@ async fn local_sessions_refuse_bad_signatures_reused_nonces_and_unknown_clients(
             nonce: &nonce,
         },
     );
-    let attempt = |signature: [u8; 64], id: String| json!({ "accessClientId": id, "nonce": b64url_encode(&nonce), "signature": b64url_encode(&signature) });
+    let attempt = |signature: [u8; 64], id: String| json!({ "accessClientId": id, "nonce": b64url_encode(&nonce), "signature": b64url_encode(&signature), "clientNonce": b64url_encode(&[5u8; 32]) });
     let response = home
         .call(
             "POST",
@@ -701,6 +715,136 @@ async fn local_sessions_refuse_bad_signatures_reused_nonces_and_unknown_clients(
         code_of(&response),
         (StatusCode::UNAUTHORIZED, "local_session_invalid")
     );
+}
+
+/// A refusal that makes an Access Client drop its keys must be one nobody on
+/// the network can fake: plain HTTP and `nemu.local` give no server
+/// authentication. The Controller signs it over the client's own nonce.
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn pair_again_refusals_are_signed_over_the_clients_nonce() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let client = pair(
+        &home,
+        &code,
+        8,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let pinned = ed25519_dalek::VerifyingKey::from_bytes(&client.pinned.signing_key).unwrap();
+    let verifies = |body: &Value, access_client_id: &str, nonce: &[u8; 32]| {
+        let Some(signature) = body["error"]["details"]["refusalSignature"].as_str() else {
+            return false;
+        };
+        let signature = b64url_decode(signature).unwrap();
+        let message = refusal_message(&LanRefusal {
+            controller_id: CONTROLLER_ID,
+            access_client_id,
+            code: body["error"]["code"].as_str().unwrap(),
+            client_nonce: nonce,
+        });
+        pinned
+            .verify_strict(
+                &message,
+                &ed25519_dalek::Signature::from_slice(&signature).unwrap(),
+            )
+            .is_ok()
+    };
+    let refused = |access_client_id: String, signing: SigningKey, nonce: [u8; 32]| {
+        let home = &home;
+        async move {
+            let (_, challenge) = home
+                .call("POST", "/api/local-sessions/challenge", None, None)
+                .await;
+            let challenge = b64url_decode(challenge["nonce"].as_str().unwrap()).unwrap();
+            let signature = sign_challenge(
+                &signing,
+                &LocalSessionChallenge {
+                    controller_id: CONTROLLER_ID,
+                    access_client_id: &access_client_id,
+                    nonce: &challenge,
+                },
+            );
+            let (status, body) = home
+                .call(
+                    "POST",
+                    "/api/local-sessions",
+                    None,
+                    Some(json!({
+                        "accessClientId": access_client_id,
+                        "nonce": b64url_encode(&challenge),
+                        "signature": b64url_encode(&signature),
+                        "clientNonce": b64url_encode(&nonce),
+                    })),
+                )
+                .await;
+            assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+            body
+        }
+    };
+
+    let stranger = uuid::Uuid::new_v4().to_string();
+    let body = refused(stranger.clone(), client.signing.clone(), [1u8; 32]).await;
+    assert_eq!(body["error"]["code"], "unknown_access_client");
+    assert!(verifies(&body, &stranger, &[1u8; 32]));
+    // Bound to this nonce and this Access Client: replayed onto another
+    // request it does not verify.
+    assert!(!verifies(&body, &stranger, &[2u8; 32]));
+    assert!(!verifies(&body, &client.access_client_id, &[1u8; 32]));
+
+    let session = open_session(&home, &client).await.unwrap();
+    let (status, _) = home
+        .call(
+            "DELETE",
+            "/api/access-clients/current",
+            Some(&session),
+            None,
+        )
+        .await;
+    assert!(status.is_success(), "{status}");
+    let body = refused(
+        client.access_client_id.clone(),
+        client.signing.clone(),
+        [3u8; 32],
+    )
+    .await;
+    assert_eq!(body["error"]["code"], "tombstoned_access_client");
+    assert!(verifies(&body, &client.access_client_id, &[3u8; 32]));
+
+    // A refusal that is no reason to pair again is not signed.
+    let (impostor, _) = new_keys(9);
+    let code = home.pairing_code().await;
+    let other = pair(
+        &home,
+        &code,
+        10,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let body = refused(other.access_client_id.clone(), impostor, [4u8; 32]).await;
+    assert_eq!(body["error"]["code"], "bad_signature");
+    assert!(body["error"]["details"].is_null(), "{body}");
+
+    // Without a usable client nonce there is nothing to sign over.
+    let (_, challenge) = home
+        .call("POST", "/api/local-sessions/challenge", None, None)
+        .await;
+    let (status, _) = home
+        .call(
+            "POST",
+            "/api/local-sessions",
+            None,
+            Some(json!({
+                "accessClientId": stranger,
+                "nonce": challenge["nonce"],
+                "signature": b64url_encode(&[0u8; 64]),
+                "clientNonce": b64url_encode(&[0u8; 16]),
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
@@ -1062,7 +1206,7 @@ async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
         .await
         .unwrap();
     let reply: Value = serde_json::from_slice(
-        &open_response(&response, &header, &keys, &phone.pinned.signing_key).unwrap(),
+        &open_response(&response, &sealed, &keys, &phone.pinned.signing_key).unwrap(),
     )
     .unwrap();
     assert_eq!(reply, json!({ "type": "session", "role": "owner" }));
@@ -1107,6 +1251,7 @@ async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
                 "accessClientId": phone.access_client_id,
                 "nonce": challenge["nonce"],
                 "signature": sealed.signature,
+                "clientNonce": b64url_encode(&[5u8; 32]),
             })),
         )
         .await;
@@ -1117,7 +1262,7 @@ async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
         .await
         .unwrap();
     let refusal: Value = serde_json::from_slice(
-        &open_response(&replayed, &header, &keys, &phone.pinned.signing_key).unwrap(),
+        &open_response(&replayed, &sealed, &keys, &phone.pinned.signing_key).unwrap(),
     )
     .unwrap();
     assert_eq!(refusal["ok"], json!(false), "{refusal}");

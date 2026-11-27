@@ -15,6 +15,7 @@ export {
     createSecretAccessClientKeyStore,
     PAIR_AGAIN_ERROR_CODES,
     pairAgainReason,
+    SignedRefusal,
     stageAccessClientKeys,
 } from './access-client-keys.ts'
 export type {
@@ -97,7 +98,7 @@ export type {
 export {
     clearRememberedBaseUrl,
     clearRememberedControllerId,
-    forgetLegacyClientTokens,
+    discardLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     setRememberedBaseUrl,

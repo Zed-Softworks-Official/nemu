@@ -414,7 +414,7 @@ describe('Adding a Device while the connection changes', () => {
         await screen.findByRole('button', { name: 'Cancel' })
     })
 
-    it('shows each commissioning step over LAN, and none over Relay until NEM-63', async () => {
+    it('shows each commissioning step over LAN, and none over Relay until NEM-123', async () => {
         const controller = home(true)
         await renderDevicesTab(controller)
         await commissioningMatter(controller)
@@ -437,8 +437,8 @@ describe('Adding a Device while the connection changes', () => {
         expect(screen.getByText('✓ Looking for your Device')).toBeTruthy()
         expect(screen.getByText('○ Joining your Home')).toBeTruthy()
 
-        // Progress goes over the LAN WebSocket only (Relay pushes come back
-        // encrypted in NEM-63), so a step reached over Relay never shows.
+        // Progress goes over the LAN WebSocket only (NEM-123 pushes it over
+        // sealed Relay), so a step reached over Relay never shows.
         controller.lanReachable = false
         await act(() => reprobe())
         await screen.findByText('Connected over relay')

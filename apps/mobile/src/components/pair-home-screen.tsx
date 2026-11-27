@@ -16,7 +16,7 @@ const StyledSafeAreaView = styled(SafeAreaView)
 
 const CODE_LENGTH = 6
 
-/** Guides an unpaired installation through Access Client pairing. */
+/** Guides an installation that is not paired through Access Client pairing. */
 export function PairHomeScreen() {
     const { switchHome, completePairing, pairingNotice } = useHomeSession()
     const { home, state, pairing } = useAccessClientPairing()

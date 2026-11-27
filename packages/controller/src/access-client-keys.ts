@@ -1,5 +1,15 @@
-import { ApiError } from '@nemu/protocol'
 import {
+    ApiError,
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
+    keysRefused,
+    NOT_PAIRED_ERROR_CODE,
+    PAIR_AGAIN_ERROR_CODES,
+    type PairAgainReason,
+    pairAgainReasonSchema,
+} from '@nemu/protocol'
+import {
+    acceptableEncryptionKey,
+    acceptableSigningKey,
     b64urlDecode,
     b64urlEncode,
     type Ed25519Signer,
@@ -7,6 +17,15 @@ import {
     ed25519Signer,
     x25519PublicKey,
 } from '@nemu/protocol/relay-crypto'
+import { z } from 'zod'
+
+export {
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
+    keysRefused,
+    NOT_PAIRED_ERROR_CODE,
+    PAIR_AGAIN_ERROR_CODES,
+    type PairAgainReason,
+}
 
 /**
  * An Access Client's own keys. Private keys never leave the store that made
@@ -63,49 +82,43 @@ export interface AccessClientKeyStore {
     clear(controllerId: string): Promise<void>
 }
 
-/** Error code when this Access Client holds no keys for the Home. */
-export const NOT_PAIRED_ERROR_CODE = 'not_paired'
+// The pair-again reasons (`PAIR_AGAIN_ERROR_CODES`) live in @nemu/protocol.
+// Each one that drops keys reaches the client only signed by the pinned
+// Controller key and bound to a request or nonce of this client's, so
+// Convex or the network can't fake one. A bad signature is never one:
+// anyone in between can flip a byte.
 
 /**
- * The Controller's refusal of a bearer token (NEM-131). This client never
- * sends one; an alpha build that does must pair again at home.
+ * A refusal this client verified came from the Controller it paired with:
+ * a Relay reply that opened under this request's keys and the pinned
+ * Controller key, a signed Local session refusal over this client's nonce,
+ * or a verified Membership routing projection. Only one of these may make
+ * the client drop its keys; the same code in anything unverified (a plain
+ * HTTP error, which anyone on the network can send) changes nothing.
  */
-export const BEARER_TOKEN_RETIRED_ERROR_CODE = 'bearer_token_retired'
-
-/**
- * Error codes meaning this Access Client must pair again at home: it holds no
- * keys for the Home, it presented a retired bearer token, or the Controller
- * no longer knows or has revoked it. A bad signature means the Controller
- * does not hold the keys this client signs with, so the same applies.
- */
-export const PAIR_AGAIN_ERROR_CODES = [
-    NOT_PAIRED_ERROR_CODE,
-    BEARER_TOKEN_RETIRED_ERROR_CODE,
-    'unknown_access_client',
-    'tombstoned_access_client',
-    'bad_signature',
-    /** The Controller signed this Membership's routing projection as ended. */
-    'membership_ended',
-] as const
-
-export type PairAgainReason = (typeof PAIR_AGAIN_ERROR_CODES)[number]
-
-/**
- * True when the Controller refused this client's keys, so they are worth
- * nothing now. Holding no keys, or a refused bearer token, says nothing
- * about the keys.
- */
-export function keysRefused(reason: PairAgainReason): boolean {
-    return (
-        reason !== NOT_PAIRED_ERROR_CODE &&
-        reason !== BEARER_TOKEN_RETIRED_ERROR_CODE
-    )
+export class SignedRefusal extends ApiError {
+    constructor(
+        code: string,
+        message: string,
+        status?: number,
+        details?: unknown
+    ) {
+        super(code, message, status, details)
+        this.name = 'SignedRefusal'
+    }
 }
 
-/** The pair-again reason an error carries, or null for any other error. */
+/**
+ * The pair-again reason an error carries, or null for any other error. A
+ * reason that drops keys counts only from a `SignedRefusal`.
+ */
 export function pairAgainReason(error: unknown): PairAgainReason | null {
     if (!(error instanceof ApiError)) return null
-    return PAIR_AGAIN_ERROR_CODES.find((code) => code === error.code) ?? null
+    const parsed = pairAgainReasonSchema.safeParse(error.code)
+    if (!parsed.success) return null
+    const reason = parsed.data
+    if (keysRefused(reason) && !(error instanceof SignedRefusal)) return null
+    return reason
 }
 
 export function randomSecret(): Uint8Array {
@@ -213,51 +226,44 @@ export function serializeEnrollment(
     return stored
 }
 
-function text(value: unknown): string | null {
-    return typeof value === 'string' && value.length > 0 ? value : null
-}
+/** 32 bytes, as base64url text. */
+export const b64urlKey32Schema = z.string().transform((text, ctx) => {
+    const bytes = b64urlDecode(text)
+    if (bytes?.length === 32) return bytes
+    ctx.addIssue({ code: 'custom', message: 'Expected 32 bytes' })
+    return z.NEVER
+})
 
-function key32(value: unknown): Uint8Array | null {
-    if (typeof value !== 'string') return null
-    const bytes = b64urlDecode(value)
-    return bytes && bytes.length === 32 ? bytes : null
-}
+/** 32 raw bytes. */
+export const bytes32Schema = z.custom<Uint8Array>(
+    (value) => value instanceof Uint8Array && value.length === 32
+)
+
+const storedEnrollmentSchema = z.object({
+    controllerId: z.string().min(1),
+    accessClientId: z.string().min(1),
+    membershipId: z.string().min(1),
+    grant: z.string().min(1),
+    // Only keys pairing would have pinned (see `pairWithController`).
+    controllerSigningKey: b64urlKey32Schema.refine(acceptableSigningKey),
+    controllerEncryptionKey: b64urlKey32Schema.refine(acceptableEncryptionKey),
+    // A bad epoch is dropped, not the enrollment: 1 is the safe default.
+    identityEpoch: z
+        .number()
+        .int()
+        .positive()
+        .max(Number.MAX_SAFE_INTEGER)
+        .optional()
+        .catch(undefined),
+})
 
 export function parseEnrollment(value: unknown): AccessClientEnrollment | null {
-    if (typeof value !== 'object' || value === null) return null
-    const v = value as Record<string, unknown>
-    const controllerId = text(v.controllerId)
-    const accessClientId = text(v.accessClientId)
-    const membershipId = text(v.membershipId)
-    const grant = text(v.grant)
-    const controllerSigningKey = key32(v.controllerSigningKey)
-    const controllerEncryptionKey = key32(v.controllerEncryptionKey)
-    if (
-        !controllerId ||
-        !accessClientId ||
-        !membershipId ||
-        !grant ||
-        !controllerSigningKey ||
-        !controllerEncryptionKey
-    ) {
-        return null
-    }
-    const enrollment: AccessClientEnrollment = {
-        controllerId,
-        accessClientId,
-        membershipId,
-        grant,
-        controllerSigningKey,
-        controllerEncryptionKey,
-    }
-    if (
-        typeof v.identityEpoch === 'number' &&
-        Number.isSafeInteger(v.identityEpoch) &&
-        v.identityEpoch > 0
-    ) {
-        enrollment.identityEpoch = v.identityEpoch
-    }
-    return enrollment
+    const parsed = storedEnrollmentSchema.safeParse(value)
+    if (!parsed.success) return null
+    const { identityEpoch, ...enrollment } = parsed.data
+    return identityEpoch === undefined
+        ? enrollment
+        : { ...enrollment, identityEpoch }
 }
 
 /**
@@ -272,12 +278,19 @@ export type AccessClientSecretStorage = {
 
 const SECRET_RECORD_VERSION = 1
 
+const secretRecordSchema = z.object({
+    version: z.literal(SECRET_RECORD_VERSION),
+    signingSecret: b64urlKey32Schema,
+    encryptionSecret: b64urlKey32Schema,
+    enrollment: z.unknown(),
+})
+
 /**
  * Keeps key bytes and the enrollment as one JSON value per Home, for stores
  * that can only hold bytes (mobile: the Keychain or Keystore through
  * expo-secure-store). The crypto runs in JS. Anything that is not a
  * complete record, such as a bearer-token credential from before Access
- * Client keys, loads as unpaired.
+ * Client keys, loads as not paired.
  */
 export function createSecretAccessClientKeyStore(
     storage: AccessClientSecretStorage
@@ -327,18 +340,11 @@ export function createSecretAccessClientKeyStore(
             } catch {
                 return null
             }
-            if (typeof value !== 'object' || value === null) return null
-            const v = value as Record<string, unknown>
-            if (v.version !== SECRET_RECORD_VERSION) return null
-            const signingSecret = key32(v.signingSecret)
-            const encryptionSecret = key32(v.encryptionSecret)
-            const enrollment = parseEnrollment(v.enrollment)
-            if (
-                !signingSecret ||
-                !encryptionSecret ||
-                !enrollment ||
-                enrollment.controllerId !== controllerId
-            ) {
+            const record = secretRecordSchema.safeParse(value)
+            if (!record.success) return null
+            const { signingSecret, encryptionSecret } = record.data
+            const enrollment = parseEnrollment(record.data.enrollment)
+            if (!enrollment || enrollment.controllerId !== controllerId) {
                 return null
             }
             const keys = accessClientKeysFromSecrets(

@@ -30,6 +30,17 @@ export const RELAY_ACCESS_CLIENT_LIMIT = {
     capacity: 60,
 } as const
 
+/**
+ * Per Account, across its Access Clients: one Account can't spend a Home's
+ * whole budget by posting as many Access Clients.
+ */
+export const RELAY_ACCOUNT_LIMIT = {
+    kind: 'token bucket',
+    rate: 240,
+    period: MINUTE,
+    capacity: 120,
+} as const
+
 export const RELAY_CONTROLLER_LIMIT = {
     kind: 'token bucket',
     rate: 600,
@@ -39,6 +50,7 @@ export const RELAY_CONTROLLER_LIMIT = {
 
 export const relayRateLimiter = new RateLimiter(components.rateLimiter, {
     relayPerController: RELAY_CONTROLLER_LIMIT,
+    relayPerAccount: RELAY_ACCOUNT_LIMIT,
     relayPerAccessClient: RELAY_ACCESS_CLIENT_LIMIT,
 })
 

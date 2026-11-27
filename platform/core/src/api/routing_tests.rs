@@ -137,9 +137,14 @@ async fn pairing_the_first_owner_publishes_a_signed_active_projection() {
         identity_body("owner-1", "owner@example.com"),
     )
     .await;
-    assert_eq!(drain(&home, &convex).await, 1);
+    // The new Membership, then its first Access Client.
+    assert_eq!(drain(&home, &convex).await, 2);
 
     let projection = convex.latest(&owner.membership_id).unwrap();
+    assert_eq!(
+        projection.access_client_ids,
+        [owner.access_client_id.clone()]
+    );
     assert_eq!(projection.controller_id, CONTROLLER_ID);
     assert_eq!(
         routing(&projection),
@@ -153,6 +158,7 @@ async fn pairing_the_first_owner_publishes_a_signed_active_projection() {
     assert_eq!(
         fields,
         [
+            "accessClientIds",
             "accountId",
             "controllerId",
             "identityEpoch",
@@ -242,7 +248,9 @@ async fn removing_a_member_and_leaving_a_home_publish_ended_projections() {
         .call("POST", "/api/members/leave", Some(&leaver_session), None)
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
-    assert_eq!(drain(&home, &convex).await, 2);
+    // Leaving revokes the leaver's Access Client first (a republish), then
+    // ends the Membership.
+    assert_eq!(drain(&home, &convex).await, 3);
 
     let ended = convex.latest(&removed.to_string()).unwrap();
     assert_eq!(
@@ -250,10 +258,12 @@ async fn removing_a_member_and_leaving_a_home_publish_ended_projections() {
         ("member-1", MembershipRoutingState::Ended, 1)
     );
     assert!(ended.sequence > before.sequence);
+    let left = convex.latest(&leaver.membership_id).unwrap();
     assert_eq!(
-        routing(&convex.latest(&leaver.membership_id).unwrap()),
+        routing(&left),
         ("member-2", MembershipRoutingState::Ended, 1)
     );
+    assert!(left.access_client_ids.is_empty());
     assert_eq!(
         convex.latest(&owner.membership_id).unwrap().state,
         MembershipRoutingState::Active
@@ -336,5 +346,59 @@ async fn existing_memberships_are_backfilled_and_republished_when_the_epoch_chan
     assert_eq!(
         routing(&convex.latest(&owner.to_string()).unwrap()),
         ("owner-1", MembershipRoutingState::Active, 2)
+    );
+}
+
+/// Convex accepts a Relay envelope only for an Access Client the Account's
+/// projection names, so pairing and revoking one republish the Membership.
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn pairing_and_revoking_access_clients_republish_who_may_use_relay() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = routed_home().await;
+    let convex = FakeConvex::for_home(&home);
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        64,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let code = home.pairing_code().await;
+    let tablet = pair(
+        &home,
+        &code,
+        65,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    drain(&home, &convex).await;
+    let mut both = vec![
+        phone.access_client_id.clone(),
+        tablet.access_client_id.clone(),
+    ];
+    both.sort();
+    let latest = convex.latest(&phone.membership_id).unwrap();
+    assert_eq!(latest.state, MembershipRoutingState::Active);
+    assert_eq!(latest.access_client_ids, both);
+
+    let session = open_session(&home, &phone).await.unwrap();
+    let (status, _) = home
+        .call(
+            "DELETE",
+            &format!("/api/access-clients/{}", tablet.access_client_id),
+            Some(&session),
+            None,
+        )
+        .await;
+    assert!(status.is_success(), "{status}");
+    assert_eq!(drain(&home, &convex).await, 1);
+    assert_eq!(
+        convex
+            .latest(&phone.membership_id)
+            .unwrap()
+            .access_client_ids,
+        [phone.access_client_id.clone()]
     );
 }

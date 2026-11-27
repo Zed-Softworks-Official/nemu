@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
+import { ed25519 } from '@noble/curves/ed25519.js'
 
 import { buildRelayCryptoVectors } from './build-vectors.ts'
 import { hexDecode, hexEncode, utf8Decode, utf8Encode } from './bytes.ts'
@@ -39,7 +40,12 @@ import {
     sealResponse,
 } from './envelope.ts'
 import { GrantError, issueGrant, verifyGrant } from './grant.ts'
-import { deriveKeyPair, setupBaseReceiver, setupBaseSender } from './hpke.ts'
+import {
+    acceptableEncryptionKey,
+    deriveKeyPair,
+    setupBaseReceiver,
+    setupBaseSender,
+} from './hpke.ts'
 import {
     ProjectionError,
     signMembershipProjection,
@@ -52,10 +58,16 @@ import {
     type ReplayWindow,
 } from './replay.ts'
 import {
+    signLanRefusal,
     signLocalSessionChallenge,
+    verifyLanRefusal,
     verifyLocalSessionChallenge,
 } from './session.ts'
-import { ed25519Signer } from './signing.ts'
+import {
+    acceptableSigningKey,
+    ed25519Signer,
+    ed25519Verify,
+} from './signing.ts'
 
 const FIXTURE_URL = new URL(
     '../../../testdata/relay-crypto/vectors.json',
@@ -369,7 +381,7 @@ describe('sealed responses', () => {
         it(`seals and opens: ${v.name}`, async () => {
             const request = requestByName(v.request)
             const sealed = await sealResponse({
-                request: request.header,
+                request: request.sealed as SealedRequest,
                 keys: request.keys,
                 plaintext: utf8Encode(v.plaintext),
                 controllerSigner,
@@ -377,7 +389,7 @@ describe('sealed responses', () => {
             assert.deepEqual(sealed, v.sealed)
             const plaintext = openResponse({
                 sealed: v.sealed,
-                request: request.header,
+                request: request.sealed as SealedRequest,
                 keys: request.keys,
                 controllerSigningKey: h(controller.signingPublic),
             })
@@ -392,7 +404,7 @@ describe('sealed responses', () => {
                 errorCode(() =>
                     openResponse({
                         sealed: r.sealed as SealedResponse,
-                        request: request.header,
+                        request: request.sealed as SealedRequest,
                         keys: request.keys,
                         controllerSigningKey: h(controller.signingPublic),
                     })
@@ -536,6 +548,79 @@ describe('Membership routing projections', () => {
         assert.ok(supersedesProjection(at(2, 1), at(1, 90)))
         assert.ok(!supersedesProjection(at(1, 90), at(2, 1)))
     })
+})
+
+describe('Ed25519 and X25519 edge cases, refused as Core refuses them', () => {
+    for (const v of fixture.ed25519.weakSigningKeys) {
+        it(`refuses a signing key ${v.name}`, () => {
+            assert.equal(acceptableSigningKey(h(v.bytes)), false)
+        })
+    }
+    for (const v of fixture.ed25519.weakEncryptionKeys) {
+        it(`refuses an encryption key: ${v.name}`, () => {
+            assert.equal(acceptableEncryptionKey(h(v.bytes)), false)
+        })
+    }
+    it('accepts the vector parties’ own keys', () => {
+        for (const party of [controller, accessClient]) {
+            assert.ok(acceptableSigningKey(h(party.signingPublic)))
+            assert.ok(acceptableEncryptionKey(h(party.encryptionPublic)))
+        }
+    })
+    it('refuses a signature only a cofactored verifier accepts', () => {
+        const v = fixture.ed25519.cofactoredOnly
+        const args = [h(v.signature), h(v.message), h(v.signer)] as const
+        // noble's own check is cofactored, so the vector really is the edge.
+        assert.equal(ed25519.verify(...args, { zip215: false }), true)
+        assert.equal(
+            ed25519Verify(h(v.signer), h(v.message), h(v.signature)),
+            false
+        )
+    })
+})
+
+describe('LAN pair-again refusals', () => {
+    const refusal = (v: {
+        controllerId: string
+        accessClientId: string
+        code: string
+        clientNonce: string
+    }) => ({
+        controllerId: v.controllerId,
+        accessClientId: v.accessClientId,
+        code: v.code,
+        clientNonce: h(v.clientNonce),
+    })
+
+    for (const v of fixture.lanRefusals) {
+        it(`signs and verifies: ${v.name}`, async () => {
+            const signature = await signLanRefusal(
+                ed25519Signer(h(controller.signingSecret)),
+                refusal(v)
+            )
+            assert.equal(hexEncode(signature), v.signature)
+            assert.ok(
+                verifyLanRefusal(
+                    h(controller.signingPublic),
+                    refusal(v),
+                    h(v.signature)
+                )
+            )
+        })
+    }
+
+    for (const r of fixture.rejections.lanRefusals) {
+        it(`rejects a refusal ${r.name}`, () => {
+            assert.equal(
+                verifyLanRefusal(
+                    h(controller.signingPublic),
+                    refusal(r),
+                    h(r.signature)
+                ),
+                false
+            )
+        })
+    }
 })
 
 describe('Local session challenges', () => {

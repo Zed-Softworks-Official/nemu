@@ -567,7 +567,7 @@ export class LanTransport implements ControllerTransport {
         // Browsers cannot set headers on a WebSocket, so its credential
         // rides in the query.
         if (!this.localSession) return wsUrl
-        const session = await this.localSession.token()
+        const session = await this.localSession.session()
         return `${wsUrl}?session=${encodeURIComponent(session)}`
     }
 

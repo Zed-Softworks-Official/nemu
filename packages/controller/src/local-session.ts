@@ -1,18 +1,34 @@
 import {
     ApiError,
     localSessionChallengeResponseSchema,
+    type OpenLocalSessionRequest,
     openLocalSessionResponseSchema,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
 } from '@nemu/protocol'
 import {
     b64urlDecode,
     b64urlEncode,
+    LOCAL_SESSION_NONCE_LENGTH,
     signLocalSessionChallenge,
+    verifyLanRefusal,
 } from '@nemu/protocol/relay-crypto'
+import { z } from 'zod'
 import {
+    type AccessClientEnrollment,
     type AccessClientKeyStore,
     NOT_PAIRED_ERROR_CODE,
+    SignedRefusal,
 } from './access-client-keys.ts'
-import { createControllerHttp } from './http.ts'
+import { createControllerHttp, toApiError } from './http.ts'
+
+/** Local session refusals the Controller signs over the client's nonce. */
+const SIGNED_REFUSAL_CODES: ReadonlySet<string> = new Set([
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+])
+
+const refusalDetailsSchema = z.object({ refusalSignature: z.string() })
 
 export { NOT_PAIRED_ERROR_CODE }
 
@@ -37,7 +53,7 @@ export class LocalSession {
     private readonly keyStore: AccessClientKeyStore
     private readonly now: () => number
     private readonly renewBeforeMs: number
-    private current: { token: string; expiresAt: number } | null = null
+    private current: { session: string; expiresAt: number } | null = null
     private opening: Promise<string> | null = null
 
     constructor(options: LocalSessionOptions) {
@@ -48,13 +64,13 @@ export class LocalSession {
         this.renewBeforeMs = options.renewBeforeMs ?? 60_000
     }
 
-    /** A live Local session token, opening one when needed. */
-    async token(): Promise<string> {
+    /** A live Local session, opening one when needed. */
+    async session(): Promise<string> {
         if (
             this.current &&
             this.now() < this.current.expiresAt - this.renewBeforeMs
         ) {
-            return this.current.token
+            return this.current.session
         }
         this.opening ??= this.open().finally(() => {
             this.opening = null
@@ -90,16 +106,62 @@ export class LocalSession {
             accessClientId,
             nonce: nonceBytes,
         })
-        const { data } = await this.http.post('/api/local-sessions', {
-            accessClientId,
-            nonce,
-            signature: b64urlEncode(signature),
-        })
+        const clientNonce = crypto.getRandomValues(
+            new Uint8Array(LOCAL_SESSION_NONCE_LENGTH)
+        )
+        let data: unknown
+        try {
+            const body: OpenLocalSessionRequest = {
+                accessClientId,
+                nonce,
+                signature: b64urlEncode(signature),
+                clientNonce: b64urlEncode(clientNonce),
+            }
+            ;({ data } = await this.http.post('/api/local-sessions', body))
+        } catch (error) {
+            throw verifiedRefusal(
+                toApiError(error),
+                record.enrollment,
+                clientNonce
+            )
+        }
         const opened = openLocalSessionResponseSchema.parse(data)
         this.current = {
-            token: opened.session,
+            session: opened.session,
             expiresAt: started + opened.expiresInSeconds * 1000,
         }
         return opened.session
     }
+}
+
+/**
+ * The refusal as a `SignedRefusal` when the pinned Controller key signed it
+ * over `clientNonce`; otherwise the error as it came, which drops no keys.
+ */
+function verifiedRefusal(
+    error: ApiError,
+    enrollment: AccessClientEnrollment,
+    clientNonce: Uint8Array
+): ApiError {
+    if (!SIGNED_REFUSAL_CODES.has(error.code)) return error
+    const details = refusalDetailsSchema.safeParse(error.details)
+    const signature = details.success
+        ? b64urlDecode(details.data.refusalSignature)
+        : null
+    if (
+        signature?.length !== 64 ||
+        !verifyLanRefusal(
+            enrollment.controllerSigningKey,
+            {
+                controllerId: enrollment.controllerId,
+                accessClientId: enrollment.accessClientId,
+                code: error.code,
+                clientNonce,
+            },
+            signature
+        )
+    ) {
+        return error
+    }
+    return new SignedRefusal(error.code, error.message, error.status)
 }

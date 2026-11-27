@@ -4,8 +4,8 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
+    discardLegacyClientTokens,
     discoverController,
-    forgetLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     INVALID_GRANT_ERROR_CODE,
@@ -22,7 +22,11 @@ import {
     useController,
     WRONG_HOME_ERROR_CODE,
 } from '@nemu/controller'
-import { ApiError } from '@nemu/protocol'
+import {
+    ApiError,
+    isPairAgainReason,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+} from '@nemu/protocol'
 import { Button } from '@nemu/ui/components/button'
 import { Input } from '@nemu/ui/components/input'
 import { useRouter } from 'next/navigation'
@@ -67,7 +71,7 @@ function formatPairingError(err: unknown): string {
         if (err.code === 'invalid_code') {
             return 'This pairing code was not accepted: it may be wrong, expired or already used, or another device answered for the controller. Get a new 6-digit code from the controller — restart it if no clients are paired yet, or mint one from Settings — and try again.'
         }
-        if (err.code === 'tombstoned_access_client') {
+        if (err.code === TOMBSTONED_ACCESS_CLIENT_ERROR_CODE) {
             return 'The controller refused this browser’s keys because they were revoked. Reload the page and pair again with a new code.'
         }
         if (err.code === WRONG_HOME_ERROR_CODE) {
@@ -81,26 +85,26 @@ function formatPairingError(err: unknown): string {
     return 'Pairing failed'
 }
 
+/** What each reason to pair again tells the person, for every reason. */
+const PAIR_AGAIN_MESSAGES: Record<PairAgainReason, string> = {
+    not_paired:
+        'This browser’s keys for your Home are gone. Pair it again at home.',
+    bearer_token_retired:
+        'Nemu now pairs each browser with its own keys. Pair this browser again at home.',
+    unknown_access_client:
+        'This browser no longer has access to your Home. It may have been removed. Pair it again at home.',
+    tombstoned_access_client:
+        'This browser was removed from your Home. Pair it again at home.',
+    membership_ended:
+        'You are no longer a Member of this Home. Ask an Owner for a new Invitation.',
+}
+
 /** Why this browser was sent back to pair, from `?pairAgain=`. */
 function pairAgainMessage(reason: string | null): string | null {
     if (!reason) return null
-    const known: Partial<Record<PairAgainReason, string>> = {
-        not_paired:
-            'This browser’s keys for your Home are gone. Pair it again at home.',
-        bearer_token_retired:
-            'Nemu now pairs each browser with its own keys. Pair this browser again at home.',
-        unknown_access_client:
-            'This browser no longer has access to your Home. It may have been removed. Pair it again at home.',
-        tombstoned_access_client:
-            'This browser was removed from your Home. Pair it again at home.',
-        bad_signature:
-            'Your Home did not accept this browser’s keys. Pair it again at home.',
-        membership_ended:
-            'You are no longer a Member of this Home. Ask an Owner for a new Invitation.',
-    }
-    return (
-        known[reason as PairAgainReason] ?? 'Pair this browser again at home.'
-    )
+    return isPairAgainReason(reason)
+        ? PAIR_AGAIN_MESSAGES[reason]
+        : 'Pair this browser again at home.'
 }
 
 export default function SetupPage() {
@@ -194,7 +198,7 @@ export default function SetupPage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
         setPairAgain(pairAgainMessage(params.get('pairAgain')))
-        // Only keys count: a bearer token from before them is unpaired.
+        // Only keys count: a bearer token from before them is not paired.
         const rememberedId = getRememberedControllerId()
         const rememberedUrl = getRememberedBaseUrl()
         if (!rememberedId) return
@@ -270,7 +274,7 @@ export default function SetupPage() {
                 setRememberedControllerId(id)
                 setRememberedBaseUrl(result.baseUrl)
                 // A bearer token from before Access Client keys is dead.
-                forgetLegacyClientTokens()
+                discardLegacyClientTokens()
             }
 
             if (!id) {

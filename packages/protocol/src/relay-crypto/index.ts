@@ -9,6 +9,7 @@
 export {
     b64urlDecode,
     b64urlEncode,
+    equalBytes,
     hexDecode,
     hexEncode,
     utf8Decode,
@@ -70,7 +71,7 @@ export {
     issueGrant,
     verifyGrant,
 } from './grant.ts'
-export { x25519PublicKey } from './hpke.ts'
+export { acceptableEncryptionKey, x25519PublicKey } from './hpke.ts'
 export {
     encodeMembershipProjection,
     type MembershipProjection,
@@ -94,14 +95,20 @@ export {
     type ReplayWindow,
 } from './replay.ts'
 export {
+    LAN_REFUSAL_LABEL,
+    type LanRefusal,
     LOCAL_SESSION_LABEL,
     LOCAL_SESSION_NONCE_LENGTH,
     type LocalSessionChallenge,
+    lanRefusalMessage,
     localSessionMessage,
+    signLanRefusal,
     signLocalSessionChallenge,
+    verifyLanRefusal,
     verifyLocalSessionChallenge,
 } from './session.ts'
 export {
+    acceptableSigningKey,
     type Ed25519Signer,
     ed25519PublicKey,
     ed25519Signer,

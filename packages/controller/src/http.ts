@@ -1,4 +1,9 @@
-import { ApiError, apiErrorBodySchema } from '@nemu/protocol'
+import {
+    ApiError,
+    apiErrorBodySchema,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+} from '@nemu/protocol'
 import axios, {
     type AxiosInstance,
     type InternalAxiosRequestConfig,
@@ -7,12 +12,20 @@ import axios, {
 
 /** A Local session source; see `LocalSession`. */
 export type LocalSessionAuth = {
-    token(): Promise<string>
+    session(): Promise<string>
     invalidate(): void
 }
 
-/** The Controller ended or does not know the Local session. */
-const LOCAL_SESSION_INVALID = 'local_session_invalid'
+/**
+ * The Controller ended or does not know the Local session, or refused its
+ * Access Client on a request. Opening a new session either works or brings
+ * the refusal signed (`LocalSession`), so it is tried once.
+ */
+const RENEW_SESSION_ON: ReadonlySet<string> = new Set([
+    'local_session_invalid',
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+])
 
 type RetriedConfig = InternalAxiosRequestConfig & { localSessionRetried?: true }
 
@@ -39,7 +52,7 @@ export function createControllerHttp(
 
     client.interceptors.request.use(async (config) => {
         if (localSession) {
-            config.headers.Authorization = `NemuSession ${await localSession.token()}`
+            config.headers.Authorization = `NemuSession ${await localSession.session()}`
         }
         return config
     })
@@ -55,7 +68,7 @@ export function createControllerHttp(
                 localSession &&
                 config &&
                 !config.localSessionRetried &&
-                error.code === LOCAL_SESSION_INVALID
+                RENEW_SESSION_ON.has(error.code)
             ) {
                 localSession.invalidate()
                 config.localSessionRetried = true

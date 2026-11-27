@@ -24,9 +24,11 @@ import {
     historyQueryReadSchema,
     homeMeterDesignationResultSchema,
     householdMemberSchema,
+    MEMBERSHIP_ENDED_ERROR_CODE,
     type PatchDeviceRequest,
     type PatchRoomRequest,
     type PermitJoinResponse,
+    pairAgainReasonSchema,
     parseDeviceList,
     patchRoomRequestSchema,
     permitJoinRequestSchema,
@@ -59,21 +61,25 @@ import {
     type SealedPush,
     type SealedRequest,
     type SealedResponse,
+    sealedPushSchema,
+    sealedResponseSchema,
     sealRequest,
     utf8Decode,
     utf8Encode,
 } from '@nemu/protocol/relay-crypto'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
-import type {
-    AccessClientKeyStore,
-    AccessClientRecord,
+import { z } from 'zod'
+import {
+    type AccessClientKeyStore,
+    type AccessClientRecord,
+    keysRefused,
+    SignedRefusal,
 } from '../access-client-keys.ts'
 import { NOT_PAIRED_ERROR_CODE } from '../local-session.ts'
 import { createWebRelayCounter, type RelayCounter } from '../relay-counter.ts'
 import {
     epochFromProjection,
-    MEMBERSHIP_ENDED_ERROR_CODE,
     readMembershipProjection,
 } from './membership-projection.ts'
 import {
@@ -149,13 +155,6 @@ type LiveWatch = {
  * pushes sealed before the renewal may still be in the mailbox.
  */
 const POLLED_WATCHES = 2
-
-/** Refusals that mean this Access Client must pair again at home. */
-const PAIR_AGAIN_CODES: ReadonlySet<string> = new Set([
-    'unknown_access_client',
-    'tombstoned_access_client',
-    'bad_signature',
-])
 
 export type RelayTransportOptions = {
     convex: ConvexReactClient
@@ -654,8 +653,10 @@ export class RelayTransport implements ControllerTransport {
 
     private throwIfCommandError(parsed: RelayReply, action: string): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
-            // Same error shape as LAN, so callers can act on the code.
-            throw new ApiError(
+            // Same error shape as LAN, so callers can act on the code. The
+            // reply opened under this request's keys and verified against
+            // the pinned Controller key, so its refusal is signed.
+            throw new SignedRefusal(
                 parsed.message.error?.code ?? 'relay_error',
                 parsed.message.error?.message ?? `Failed to ${action}`,
                 undefined,
@@ -701,7 +702,7 @@ export class RelayTransport implements ControllerTransport {
         )
         if (!projection) return record
         if (projection.state === 'ended') {
-            throw new ApiError(
+            throw new SignedRefusal(
                 MEMBERSHIP_ENDED_ERROR_CODE,
                 'This Account is no longer a Member of this Home.'
             )
@@ -785,7 +786,7 @@ export class RelayTransport implements ControllerTransport {
             })
             await this.send(record, sealed, deadline)
             const reply = await this.waitForReply(
-                header,
+                sealed,
                 keys,
                 enrollment.controllerSigningKey,
                 deadline
@@ -893,12 +894,10 @@ export class RelayTransport implements ControllerTransport {
             ]
             return
         }
-        if (
-            message.type === 'commandResult' &&
-            PAIR_AGAIN_CODES.has(message.error?.code ?? '')
-        ) {
-            this.watches = []
-        }
+        if (message.type !== 'commandResult') return
+        // The Controller refused this Access Client's keys: no watch lives on.
+        const reason = pairAgainReasonSchema.safeParse(message.error?.code)
+        if (reason.success && keysRefused(reason.data)) this.watches = []
     }
 
     private schedulePushPoll(): void {
@@ -933,16 +932,26 @@ export class RelayTransport implements ControllerTransport {
         let gap = false
         for (const watch of watches) {
             const pushes = docs
-                .filter(
-                    (doc) =>
-                        doc.kind === 'push' &&
-                        doc.sealed.header.requestId === watch.header.requestId
+                .flatMap((doc) => {
+                    if (doc.kind !== 'push') return []
+                    const sealed = sealedPushSchema.safeParse(doc.sealed)
+                    if (!sealed.success) {
+                        // Not a push at all: read, so it does not linger.
+                        read.push(doc._id)
+                        return []
+                    }
+                    return sealed.data.header.requestId ===
+                        watch.header.requestId
+                        ? [{ _id: doc._id, sealed: sealed.data }]
+                        : []
+                })
+                .sort(
+                    (a, b) => a.sealed.header.counter - b.sealed.header.counter
                 )
-                .sort((a, b) => pushCounter(a) - pushCounter(b))
             for (const doc of pushes) {
                 read.push(doc._id)
                 const highest = watch.window.highest
-                const event = openWatchPush(watch, doc.sealed as SealedPush)
+                const event = openWatchPush(watch, doc.sealed)
                 if (!event) continue
                 if (watch.window.highest > highest + 1) gap = true
                 this.emit(event)
@@ -964,11 +973,12 @@ export class RelayTransport implements ControllerTransport {
      * attempt, or one Convex forged or altered) is acknowledged and ignored.
      */
     private waitForReply(
-        header: RequestHeader,
+        request: SealedRequest,
         keys: RequestKeys,
         controllerSigningKey: Uint8Array,
         deadline: number
     ): Promise<RelayReply> {
+        const { header } = request
         const { requestId } = header
         return new Promise((resolve, reject) => {
             const tick = async () => {
@@ -989,12 +999,17 @@ export class RelayTransport implements ControllerTransport {
                     const discard: string[] = []
                     for (const doc of docs) {
                         if (doc.kind !== 'response') continue
-                        const message = openReply(
-                            doc.sealed as SealedResponse,
-                            header,
-                            keys,
-                            controllerSigningKey
+                        const sealed = sealedResponseSchema.safeParse(
+                            doc.sealed
                         )
+                        const message = sealed.success
+                            ? openReply(
+                                  sealed.data,
+                                  request,
+                                  keys,
+                                  controllerSigningKey
+                              )
+                            : null
                         if (!message) {
                             discard.push(doc._id)
                             continue
@@ -1014,11 +1029,6 @@ export class RelayTransport implements ControllerTransport {
             void tick()
         })
     }
-}
-
-function pushCounter(doc: RelayToClientDoc): number {
-    const counter = (doc.sealed.header as { counter?: unknown }).counter
-    return typeof counter === 'number' ? counter : 0
 }
 
 /**
@@ -1069,7 +1079,7 @@ function openWatchPush(
 /** The reply's message, or `null` unless it is this request's and genuine. */
 function openReply(
     sealed: SealedResponse,
-    request: RequestHeader,
+    request: SealedRequest,
     keys: RequestKeys,
     controllerSigningKey: Uint8Array
 ): RelayReplyMessage | null {
@@ -1100,38 +1110,29 @@ function refusalFix(
     message: RelayReplyMessage
 ): { identityEpoch?: number; highestCounter?: number } | null {
     if (message.type !== 'commandResult' || message.ok) return null
-    const details = message.error?.details as
-        | Record<string, unknown>
-        | undefined
-    const safe = (value: unknown) =>
-        typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-            ? value
-            : undefined
+    const details = message.error?.details
     switch (message.error?.code) {
         case 'retired_epoch': {
-            const identityEpoch = safe(details?.identityEpoch)
-            return identityEpoch === undefined ? null : { identityEpoch }
+            const parsed = epochFixSchema.safeParse(details)
+            return parsed.success ? parsed.data : null
         }
         case 'replayed':
         case 'outside_window': {
-            const highestCounter = safe(details?.highestCounter)
-            return highestCounter === undefined ? null : { highestCounter }
+            const parsed = counterFixSchema.safeParse(details)
+            return parsed.success ? parsed.data : null
         }
         default:
             return null
     }
 }
 
+const safeCount = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
+const epochFixSchema = z.object({ identityEpoch: safeCount })
+const counterFixSchema = z.object({ highestCounter: safeCount })
+const convexErrorSchema = z.object({ data: z.object({ code: z.string() }) })
+
 /** The `code` a ConvexError carries in its data, if any. */
 function convexErrorCode(error: unknown): string | null {
-    if (error === null || typeof error !== 'object' || !('data' in error)) {
-        return null
-    }
-    const { data } = error as { data: unknown }
-    return data !== null &&
-        typeof data === 'object' &&
-        'code' in data &&
-        typeof data.code === 'string'
-        ? data.code
-        : null
+    const parsed = convexErrorSchema.safeParse(error)
+    return parsed.success ? parsed.data.data.code : null
 }

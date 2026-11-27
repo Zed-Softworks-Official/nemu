@@ -5,6 +5,7 @@ import { CONTROLLER_JWT_ISSUER } from '../lib/controllerAuth'
 import {
     CLEANUP_BATCH_SIZE,
     RELAY_ACCESS_CLIENT_LIMIT,
+    RELAY_ACCOUNT_LIMIT,
     RELAY_CONTROLLER_LIMIT,
     RELAY_TTL_MS,
 } from '../lib/relay'
@@ -58,6 +59,7 @@ type RouteSeed = {
     state?: 'active' | 'ended'
     identityEpoch?: number
     sequence?: number
+    accessClientIds?: string[]
 }
 
 async function seedRoute(t: TestConvex, seed: RouteSeed = {}) {
@@ -68,6 +70,7 @@ async function seedRoute(t: TestConvex, seed: RouteSeed = {}) {
         state = 'active',
         identityEpoch = 1,
         sequence = 1,
+        accessClientIds = state === 'active' ? [ACCESS_CLIENT_ID] : [],
     } = seed
     await t.run(async (ctx) => {
         await ctx.db.insert('membershipRoutes', {
@@ -77,6 +80,7 @@ async function seedRoute(t: TestConvex, seed: RouteSeed = {}) {
             accountId: userId,
             state,
             sequence,
+            accessClientIds,
             signature: 'signature',
         })
     })
@@ -84,10 +88,22 @@ async function seedRoute(t: TestConvex, seed: RouteSeed = {}) {
 
 async function seedPairing(
     t: TestConvex,
-    { controllerId = CONTROLLER_ID, userId = USER_ID } = {}
+    {
+        controllerId = CONTROLLER_ID,
+        userId = USER_ID,
+        accessClientIds = [ACCESS_CLIENT_ID],
+    }: {
+        controllerId?: string
+        userId?: string
+        accessClientIds?: string[]
+    } = {}
 ) {
     await seedController(t, controllerId)
-    await seedRoute(t, { controllerId, userId })
+    await seedRoute(t, { controllerId, userId, accessClientIds })
+}
+
+function account(t: TestConvex, subject: string) {
+    return t.withIdentity({ subject, issuer: 'https://clerk.nemu.test' })
 }
 
 // Opaque blobs: Convex must store and return them byte for byte and never
@@ -368,6 +384,62 @@ describe('Relay envelope storage', () => {
     })
 })
 
+describe('Relay routes only an Account’s own Access Clients', () => {
+    // Another Account's Access Client, on a Home both Accounts belong to.
+    const THEIRS = 'access-client-of-user-2'
+
+    async function twoMembers() {
+        const ctx = setup()
+        await seedPairing(ctx.t)
+        await seedRoute(ctx.t, { userId: 'user-2', accessClientIds: [THEIRS] })
+        return ctx
+    }
+
+    test('send refuses an Access Client the Account’s projection does not name', async () => {
+        const { client } = await twoMembers()
+        for (const accessClientId of [THEIRS, 'made-up-access-client']) {
+            await expect(
+                client.mutation(api.relay.send, {
+                    sealed: sealedRequest({ accessClientId }),
+                })
+            ).rejects.toThrow('no_membership')
+        }
+        await client.mutation(api.relay.send, { sealed: sealedRequest() })
+    })
+
+    test('responses never hands one Account another’s replies', async () => {
+        const { t, client, controller } = await twoMembers()
+        await controller.mutation(api.relay.respondAsController, {
+            sealed: sealedResponse({ accessClientId: THEIRS }),
+        })
+        expect(
+            await client.query(api.relay.responses, {
+                ...responsesFor(['req']),
+                accessClientId: THEIRS,
+            })
+        ).toEqual([])
+        expect(
+            await account(t, 'user-2').query(api.relay.responses, {
+                ...responsesFor(['req']),
+                accessClientId: THEIRS,
+            })
+        ).toHaveLength(1)
+    })
+
+    test('acknowledge skips another Account’s replies', async () => {
+        const { t, client, controller } = await twoMembers()
+        const theirs = await controller.mutation(
+            api.relay.respondAsController,
+            { sealed: sealedResponse({ accessClientId: THEIRS }) }
+        )
+        await client.mutation(api.relay.acknowledge, { messageIds: [theirs] })
+        const left = await t.run((ctx) =>
+            ctx.db.query('relayMessages').collect()
+        )
+        expect(left.map((message) => message._id)).toEqual([theirs])
+    })
+})
+
 describe('Relay mailbox expiry', () => {
     test('the Controller receives unexpired requests and never expired ones', async () => {
         const { t, client, controller } = setup()
@@ -479,7 +551,9 @@ describe('Relay mailbox answers', () => {
 
     test('a response only removes the request of the same Access Client', async () => {
         const { t, client, controller } = setup()
-        await seedPairing(t)
+        await seedPairing(t, {
+            accessClientIds: [ACCESS_CLIENT_ID, 'other-client'],
+        })
 
         await client.mutation(api.relay.send, {
             sealed: sealedRequest({ accessClientId: 'other-client' }),
@@ -553,7 +627,9 @@ describe('Relay mailbox answers', () => {
 describe('Relay rate limits', () => {
     test('one Access Client is limited without blocking another on the same Controller', async () => {
         const { t, client } = setup()
-        await seedPairing(t)
+        await seedPairing(t, {
+            accessClientIds: [ACCESS_CLIENT_ID, 'access-client-2'],
+        })
 
         for (let i = 0; i < RELAY_ACCESS_CLIENT_LIMIT.capacity; i++) {
             await client.mutation(api.relay.send, {
@@ -574,32 +650,86 @@ describe('Relay rate limits', () => {
         })
     })
 
-    test('a Controller is limited across all of its Access Clients', async () => {
+    test('an Account is limited across all of its Access Clients', async () => {
         const { t, client } = setup()
-        await seedPairing(t)
-        await seedPairing(t, { controllerId: 'controller-2' })
+        const mine = ['phone', 'tablet', 'laptop', 'browser']
+        await seedPairing(t, { accessClientIds: mine })
+        await seedRoute(t, { userId: 'user-2', accessClientIds: ['theirs'] })
 
-        for (let i = 0; i < RELAY_CONTROLLER_LIMIT.capacity; i++) {
-            await client.mutation(api.relay.send, {
-                sealed: sealedRequest({
-                    requestId: `r-${i}`,
-                    accessClientId: `client-${i}`,
-                }),
-            })
+        const perClient = RELAY_ACCOUNT_LIMIT.capacity / mine.length
+        for (const accessClientId of mine) {
+            for (let i = 0; i < perClient; i++) {
+                await client.mutation(api.relay.send, {
+                    sealed: sealedRequest({
+                        requestId: `${accessClientId}-${i}`,
+                        accessClientId,
+                    }),
+                })
+            }
         }
         await expect(
             client.mutation(api.relay.send, {
                 sealed: sealedRequest({
                     requestId: 'over',
-                    accessClientId: 'fresh-client',
+                    accessClientId: 'phone',
                 }),
             })
         ).rejects.toThrow('RateLimited')
 
-        await client.mutation(api.relay.send, {
+        // Another Member of the Home is not held back.
+        await account(t, 'user-2').mutation(api.relay.send, {
+            sealed: sealedRequest({
+                requestId: 'theirs',
+                accessClientId: 'theirs',
+            }),
+        })
+    })
+
+    test('a Controller is limited across all of its Accounts', async () => {
+        const { t } = setup()
+        const accounts = Array.from(
+            { length: RELAY_CONTROLLER_LIMIT.capacity / 50 + 1 },
+            (_, i) => `user-${i}`
+        )
+        await seedController(t)
+        await seedController(t, 'controller-2')
+        for (const userId of accounts) {
+            await seedRoute(t, {
+                userId,
+                accessClientIds: [`client-${userId}`],
+            })
+        }
+        await seedRoute(t, {
+            controllerId: 'controller-2',
+            userId: 'user-0',
+            accessClientIds: ['client-user-0'],
+        })
+
+        const [last, ...budgeted] = [...accounts].reverse()
+        for (const userId of budgeted) {
+            for (let i = 0; i < 50; i++) {
+                await account(t, userId).mutation(api.relay.send, {
+                    sealed: sealedRequest({
+                        requestId: `${userId}-${i}`,
+                        accessClientId: `client-${userId}`,
+                    }),
+                })
+            }
+        }
+        await expect(
+            account(t, last ?? '').mutation(api.relay.send, {
+                sealed: sealedRequest({
+                    requestId: 'over',
+                    accessClientId: `client-${last}`,
+                }),
+            })
+        ).rejects.toThrow('RateLimited')
+
+        await account(t, 'user-0').mutation(api.relay.send, {
             sealed: sealedRequest({
                 requestId: 'elsewhere',
                 controllerId: 'controller-2',
+                accessClientId: 'client-user-0',
             }),
         })
     })

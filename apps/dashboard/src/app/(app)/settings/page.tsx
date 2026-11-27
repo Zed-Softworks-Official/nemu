@@ -6,7 +6,7 @@ import {
     clearRememberedBaseUrl,
     clearRememberedControllerId,
     createControllerHttp,
-    forgetLegacyClientTokens,
+    discardLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     LocalSession,
@@ -93,7 +93,7 @@ export default function SettingsPage() {
     const [inviteHint, setInviteHint] = useState<string | null>(null)
     const [inviteError, setInviteError] = useState<string | null>(null)
     const [busyInvite, setBusyInvite] = useState(false)
-    const [busyUnpair, setBusyUnpair] = useState(false)
+    const [busyRemoving, setBusyRemoving] = useState(false)
     const [copied, setCopied] = useState(false)
     const [platformVersion, setPlatformVersion] = useState<string | null>(null)
     const [releaseChannel, setReleaseChannel] = useState<string | null>(null)
@@ -351,17 +351,17 @@ export default function SettingsPage() {
     }
 
     /** Drops this browser's keys and Home on this browser only. */
-    async function forgetThisBrowser() {
+    async function clearThisBrowser() {
         if (controllerId && controllerId !== '—') {
             await dashboardKeyStore.clear(controllerId).catch(() => {})
         }
-        forgetLegacyClientTokens()
+        discardLegacyClientTokens()
         clearRememberedBaseUrl()
         clearRememberedControllerId()
     }
 
-    async function handleUnpair() {
-        setBusyUnpair(true)
+    async function handleRemoveThisDashboard() {
+        setBusyRemoving(true)
         try {
             if (connected) {
                 try {
@@ -373,32 +373,34 @@ export default function SettingsPage() {
             if (controllerId && controllerId !== '—') {
                 await removePairing({ controllerId })
             }
-            await forgetThisBrowser()
+            await clearThisBrowser()
             router.replace('/setup')
         } catch (err) {
             setHouseholdError(
-                err instanceof Error ? err.message : 'Failed to unpair'
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to remove this dashboard'
             )
         } finally {
-            setBusyUnpair(false)
+            setBusyRemoving(false)
         }
     }
 
     async function handleLeave() {
         if (!me) {
-            await handleUnpair()
+            await handleRemoveThisDashboard()
             return
         }
-        setBusyUnpair(true)
+        setBusyRemoving(true)
         try {
             await handleRemoveMember(me)
             if (controllerId && controllerId !== '—') {
                 await removePairing({ controllerId })
             }
-            await forgetThisBrowser()
+            await clearThisBrowser()
             router.replace('/setup')
         } finally {
-            setBusyUnpair(false)
+            setBusyRemoving(false)
         }
     }
 
@@ -760,23 +762,23 @@ export default function SettingsPage() {
                         <CardHeader>
                             <CardTitle>This dashboard</CardTitle>
                             <CardDescription>
-                                Unpair only this browser, or leave the
+                                Remove only this browser, or leave the
                                 household.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-2">
                             <Button
-                                disabled={busyUnpair}
-                                onClick={() => void handleUnpair()}
+                                disabled={busyRemoving}
+                                onClick={() => void handleRemoveThisDashboard()}
                                 size="sm"
                                 variant="outline"
                             >
-                                {busyUnpair
+                                {busyRemoving
                                     ? 'Working…'
-                                    : 'Unpair this dashboard'}
+                                    : 'Remove this dashboard'}
                             </Button>
                             <Button
-                                disabled={busyUnpair}
+                                disabled={busyRemoving}
                                 onClick={() => void handleLeave()}
                                 size="sm"
                                 variant="destructive"

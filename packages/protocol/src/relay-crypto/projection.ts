@@ -4,7 +4,9 @@
 // clients verify it against the Controller key they pinned at pairing. Twin
 // of Core's `relay_crypto::projection`.
 //
-// A projection carries routing facts only: no role, name or email.
+// A projection carries routing facts only: no role, name or email. It names
+// the Membership's Access Clients, so Convex accepts a Relay envelope only for
+// an Access Client of the Account that posts it.
 
 import { z } from 'zod'
 
@@ -17,8 +19,10 @@ import {
 } from './bytes.ts'
 import { type Ed25519Signer, ed25519Verify } from './signing.ts'
 
-const PROJECTION_LABEL = utf8Encode('nemu-membership-routing-v1')
+const PROJECTION_LABEL = utf8Encode('nemu-membership-routing-v2')
 const MAX_ID_BYTES = 256
+/** The most Access Clients one projection names (Core's newest ones). */
+export const MAX_ROUTED_ACCESS_CLIENTS = 64
 
 const id = z
     .string()
@@ -31,17 +35,26 @@ export type MembershipRoutingState = z.infer<
     typeof membershipRoutingStateSchema
 >
 
-export const membershipProjectionSchema = z.strictObject({
-    /** The Home, named by its Controller. */
-    controllerId: id,
-    identityEpoch: safeUint.min(1),
-    membershipId: id,
-    /** The Account's identity reference (its Clerk subject). */
-    accountId: id,
-    state: membershipRoutingStateSchema,
-    /** Grows with every change this Controller publishes. */
-    sequence: safeUint.min(1),
-})
+export const membershipProjectionSchema = z
+    .strictObject({
+        /** The Home, named by its Controller. */
+        controllerId: id,
+        identityEpoch: safeUint.min(1),
+        membershipId: id,
+        /** The Account's identity reference (its Clerk subject). */
+        accountId: id,
+        state: membershipRoutingStateSchema,
+        /** Grows with every change this Controller publishes. */
+        sequence: safeUint.min(1),
+        /** The Membership's Access Clients that may use Relay. */
+        accessClientIds: z.array(id).max(MAX_ROUTED_ACCESS_CLIENTS),
+    })
+    .refine(
+        (projection) =>
+            projection.state === 'active' ||
+            projection.accessClientIds.length === 0,
+        'An ended Membership names no Access Clients'
+    )
 export type MembershipProjection = z.infer<typeof membershipProjectionSchema>
 
 export const signedMembershipProjectionSchema = z.strictObject({
@@ -78,7 +91,8 @@ export function encodeMembershipProjection(
         utf8Encode(projection.membershipId),
         utf8Encode(projection.accountId),
         utf8Encode(projection.state),
-        u64be(projection.sequence)
+        u64be(projection.sequence),
+        lvCat(...projection.accessClientIds.map(utf8Encode))
     )
 }
 

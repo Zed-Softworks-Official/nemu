@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import {
-    forgetLegacyClientTokens,
+    discardLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     setRememberedBaseUrl,
@@ -67,7 +67,7 @@ describe('the remembered Home', () => {
             JSON.stringify({ clientToken: 'token-b' })
         )
 
-        forgetLegacyClientTokens()
+        discardLegacyClientTokens()
 
         assert.deepEqual(storage.keys(), ['nemu.controller.id'])
         assert.equal(getRememberedControllerId(), 'home-a')
@@ -76,7 +76,7 @@ describe('the remembered Home', () => {
     it('does nothing without browser storage', () => {
         delete globals.window
         delete globals.localStorage
-        forgetLegacyClientTokens()
+        discardLegacyClientTokens()
         assert.equal(getRememberedControllerId(), null)
     })
 })

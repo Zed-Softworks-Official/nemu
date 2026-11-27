@@ -2,6 +2,7 @@ import {
     type MembershipProjection,
     ProjectionError,
     type SignedMembershipProjection,
+    signedMembershipProjectionSchema,
     supersedesProjection,
     verifyMembershipProjection,
 } from '@nemu/protocol/relay-crypto'
@@ -29,6 +30,7 @@ export const signedMembershipProjectionValidator = v.object({
         accountId: v.string(),
         state: membershipRoutingStateValidator,
         sequence: v.number(),
+        accessClientIds: v.array(v.string()),
     }),
     signature: v.string(),
 })
@@ -84,6 +86,7 @@ export function toSignedProjection(
             accountId: route.accountId,
             state: route.state,
             sequence: route.sequence,
+            accessClientIds: route.accessClientIds,
         },
         signature: route.signature,
     }
@@ -99,17 +102,9 @@ export async function publishProjection(
     ctx: MutationCtx,
     signed: unknown
 ): Promise<PublishOutcome> {
-    const controllerId =
-        signed !== null &&
-        typeof signed === 'object' &&
-        'projection' in signed &&
-        signed.projection !== null &&
-        typeof signed.projection === 'object' &&
-        'controllerId' in signed.projection &&
-        typeof signed.projection.controllerId === 'string'
-            ? signed.projection.controllerId
-            : null
-    if (controllerId === null) throw projectionError('malformed')
+    const parsed = signedMembershipProjectionSchema.safeParse(signed)
+    if (!parsed.success) throw projectionError('malformed')
+    const { controllerId } = parsed.data.projection
     const controller = await controllerFor(ctx, controllerId)
     if (!controller) throw projectionError('unknown_controller')
     const key = decodeBase64(controller.publicKey)
@@ -118,7 +113,7 @@ export async function publishProjection(
 
     let projection: MembershipProjection
     try {
-        projection = verifyMembershipProjection(signed, controllerId, key)
+        projection = verifyMembershipProjection(parsed.data, controllerId, key)
     } catch (error) {
         if (error instanceof ProjectionError) throw projectionError(error.code)
         throw error
@@ -136,7 +131,7 @@ export async function publishProjection(
 
     const row = {
         ...projection,
-        signature: (signed as SignedMembershipProjection).signature,
+        signature: parsed.data.signature,
     }
     if (current) {
         await ctx.db.replace(current._id, row)
@@ -166,13 +161,15 @@ async function currentEpoch(
 }
 
 /**
- * Whether the Account holds an active Membership in this Home, by the
- * latest signed projections. This is what Relay routes on.
+ * Whether the Account holds an active Membership in this Home that names
+ * this Access Client, by the latest signed projections. This is what Relay
+ * routes on: an Account can post or read only as its own Access Clients.
  */
-export async function hasActiveMembership(
+export async function routesAccessClient(
     ctx: QueryCtx,
     controllerId: string,
-    accountId: string
+    accountId: string,
+    accessClientId: string
 ): Promise<boolean> {
     const epoch = await currentEpoch(ctx, controllerId)
     if (epoch === null) return false
@@ -183,7 +180,10 @@ export async function hasActiveMembership(
         )
         .collect()
     return routes.some(
-        (route) => route.state === 'active' && route.identityEpoch === epoch
+        (route) =>
+            route.state === 'active' &&
+            route.identityEpoch === epoch &&
+            route.accessClientIds.includes(accessClientId)
     )
 }
 

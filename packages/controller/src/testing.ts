@@ -45,6 +45,7 @@ import {
     type AccessClientRecord,
     accessClientKeysFromSecrets,
     createMemoryAccessClientKeyStore,
+    SignedRefusal,
 } from './access-client-keys.ts'
 import type { ControllerConnectors } from './connection.ts'
 import type { ProbeResult } from './discovery.ts'
@@ -317,7 +318,7 @@ export class FakeController {
 
     /**
      * Report a Protocol-neutral commissioning step, as the Controller does:
-     * over LAN only. Relay carries no progress until NEM-63 encrypts it.
+     * over LAN only. Relay carries no progress until NEM-123.
      */
     commissioningStep(progress: CommissioningProgress): void {
         const event: DeviceEvent = { type: 'commissioningStep', ...progress }
@@ -988,15 +989,17 @@ export class FakeTransport implements ControllerTransport {
         if (id === null) {
             throw new ApiError('unauthorized', 'Missing Local session', 401)
         }
+        // As the real transports report them once verified: a sealed Relay
+        // reply, or a Local session refusal signed over the client's nonce.
         if (this.controller.tombstoned(id)) {
-            throw new ApiError(
+            throw new SignedRefusal(
                 'tombstoned_access_client',
                 'This Access Client was revoked',
                 401
             )
         }
         if (!this.controller.accepts(id)) {
-            throw new ApiError(
+            throw new SignedRefusal(
                 'unknown_access_client',
                 'This Controller does not know this Access Client',
                 401

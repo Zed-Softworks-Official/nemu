@@ -13,6 +13,7 @@ use crate::api::error::{ApiError, ApiResult};
 use crate::pairing::exchange::{self, PairingClaims, PairingSecret};
 use crate::pairing::local_sessions::open_local_session;
 use crate::relay_crypto::cpace::InitiatorMessage;
+use crate::relay_crypto::session::NONCE_LEN;
 use crate::relay_crypto::wire::{b64url_decode, b64url_decode_32, b64url_encode};
 use crate::state::AppState;
 
@@ -78,6 +79,9 @@ pub struct OpenSessionBody {
     pub access_client_id: String,
     pub nonce: String,
     pub signature: String,
+    /// The Access Client's fresh nonce, which a pair-again refusal is
+    /// signed over.
+    pub client_nonce: String,
 }
 
 #[derive(Serialize)]
@@ -181,10 +185,25 @@ pub async fn open(
     State(state): State<AppState>,
     Json(body): Json<OpenSessionBody>,
 ) -> ApiResult<(StatusCode, Json<OpenSessionResponse>)> {
-    let bad = || ApiError::bad_request("invalid_request", "nonce and signature must be base64url");
+    let bad = || {
+        ApiError::bad_request(
+            "invalid_request",
+            "nonce, signature and clientNonce must be base64url",
+        )
+    };
     let nonce = b64url_decode(&body.nonce).ok_or_else(bad)?;
     let signature = b64url_decode(&body.signature).ok_or_else(bad)?;
-    let opened = open_local_session(&state, &body.access_client_id, &nonce, &signature).await?;
+    let client_nonce = b64url_decode(&body.client_nonce)
+        .and_then(|bytes| <[u8; NONCE_LEN]>::try_from(bytes).ok())
+        .ok_or_else(bad)?;
+    let opened = open_local_session(
+        &state,
+        &body.access_client_id,
+        &nonce,
+        &signature,
+        &client_nonce,
+    )
+    .await?;
     Ok((
         StatusCode::CREATED,
         Json(OpenSessionResponse {

@@ -17,7 +17,7 @@ type Pending = 'remove' | 'leave'
  * as the Controller gave it.
  */
 export function HomeAccessSettings() {
-    const { activeHome, forgetPairing, switchHome } = useHomeSession()
+    const { activeHome, clearPairing, switchHome } = useHomeSession()
     const { status, revokeCurrentAccessClient, leaveHome } = useController()
     const [confirming, setConfirming] = useState<Pending | null>(null)
     const [busy, setBusy] = useState(false)
@@ -38,7 +38,7 @@ export function HomeAccessSettings() {
                 </Text>
                 <View className="flex-row">
                     <Button
-                        onPress={() => forgetPairing()}
+                        onPress={() => clearPairing()}
                         title="Forget on this phone"
                         variant="destructive"
                     />
@@ -53,10 +53,10 @@ export function HomeAccessSettings() {
         try {
             if (action === 'remove') {
                 await revokeCurrentAccessClient()
-                forgetPairing()
+                clearPairing()
             } else {
                 await leaveHome()
-                forgetPairing()
+                clearPairing()
                 switchHome()
             }
         } catch (cause) {
@@ -68,7 +68,7 @@ export function HomeAccessSettings() {
                 if (action === 'leave') {
                     await revokeCurrentAccessClient().catch(() => {})
                 }
-                forgetPairing(`This phone was already removed from ${home}.`)
+                clearPairing(`This phone was already removed from ${home}.`)
                 return
             }
             setError(describeRefusal(cause, home))

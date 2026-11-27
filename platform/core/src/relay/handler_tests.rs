@@ -22,6 +22,7 @@ use crate::pairing::access_clients::{AccessClientInput, insert_access_client};
 use crate::pairing::members::insert_member;
 use crate::relay_crypto::envelope::{open_response, seal_request};
 use crate::relay_crypto::hpke;
+use crate::relay_crypto::wire::{b64url_decode, b64url_encode};
 use crate::state::{AppState, DbPool, HealthFlags};
 
 const CONTROLLER_ID: &str = "nemu_00000000cafef00d";
@@ -142,7 +143,7 @@ impl Client {
         let reply = reply.expect("Core answers this request");
         let plaintext = open_response(
             &reply,
-            &sent.sealed.header,
+            &sent.sealed,
             &sent.keys,
             &self.controller_signing_key,
         )
@@ -377,7 +378,7 @@ async fn unknown_and_tombstoned_access_clients_are_told_to_pair_again() {
 
 #[tokio::test]
 #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-async fn a_request_signed_by_another_key_is_refused() {
+async fn a_request_signed_by_another_key_gets_no_reply() {
     let _home = crate::db::HOME_TABLES.lock().await;
     let home = Home::new().await;
     let mut client = home.client("user_owner", "owner", 1).await;
@@ -389,11 +390,59 @@ async fn a_request_signed_by_another_key_is_refused() {
         &json!({ "type": "createRoom", "name": "Forged Room" }),
         &impostor,
     );
-    assert_eq!(
-        error_code(&home.exchange(&client, &sent).await),
-        "bad_signature"
-    );
+    // Whoever signed it, the Controller answers nothing: a signed
+    // `bad_signature` would let Convex make a client drop its keys.
+    assert!(home.mailbox.deliver(&sent.sealed).await.is_none());
     assert_eq!(home.count_rooms("Forged Room").await, 0);
+}
+
+/// Convex rewrites a client's request in the mailbox. Nothing the Controller
+/// sends back may open as the reply to the request the client sent, so no
+/// refusal it earns can make that client drop its keys.
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_tampered_request_earns_no_reply_its_sender_accepts() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let sent = client.seal("r1", json!({ "type": "createRoom", "name": "Tampered" }));
+
+    let mut flipped = sent.sealed.clone();
+    let mut signature = b64url_decode(&flipped.signature).unwrap();
+    signature[0] ^= 1;
+    flipped.signature = b64url_encode(&signature);
+    let mut recounted = sent.sealed.clone();
+    recounted.header.counter += 7;
+    let mut extended = sent.sealed.clone();
+    extended.header.expires_at += 60_000;
+    for tampered in [flipped, recounted, extended] {
+        assert!(home.mailbox.deliver(&tampered).await.is_none());
+    }
+
+    // A rewrite the Controller refuses before the signature check
+    // (expired) is answered, but bound to the rewritten request: it does not
+    // open as the reply to the one the client sent.
+    let mut expired = sent.sealed.clone();
+    expired.header.expires_at = now_ms() - CLOCK_SKEW - 1_000;
+    let reply = home
+        .mailbox
+        .deliver(&expired)
+        .await
+        .expect("an expired request is answered");
+    assert_eq!(
+        open_response(
+            &reply,
+            &sent.sealed,
+            &sent.keys,
+            &client.controller_signing_key
+        )
+        .unwrap_err(),
+        RelayRejection::BadSignature
+    );
+    assert_eq!(home.count_rooms("Tampered").await, 0);
+
+    // The untouched request still runs.
+    assert_eq!(home.exchange(&client, &sent).await["type"], "room");
 }
 
 #[tokio::test]

@@ -5,7 +5,12 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import { ApiError } from '@nemu/protocol'
-import { ed25519Verify, utf8Encode } from '@nemu/protocol/relay-crypto'
+import {
+    ed25519PublicKey,
+    ed25519Verify,
+    utf8Encode,
+    x25519PublicKey,
+} from '@nemu/protocol/relay-crypto'
 import {
     type AccessClientEnrollment,
     type AccessClientKeyStore,
@@ -34,8 +39,8 @@ function enrollment(
         accessClientId: `ac-${controllerId}`,
         membershipId: `mem-${controllerId}`,
         grant: 'header.payload.signature',
-        controllerSigningKey: new Uint8Array(32).fill(7),
-        controllerEncryptionKey: new Uint8Array(32).fill(9),
+        controllerSigningKey: ed25519PublicKey(new Uint8Array(32).fill(7)),
+        controllerEncryptionKey: x25519PublicKey(new Uint8Array(32).fill(9)),
         ...extra,
     }
 }
@@ -125,7 +130,7 @@ describe('Secret Access Client key store (mobile)', () => {
         assert.equal(again.enrollment.identityEpoch, 3)
     })
 
-    it('treats a bearer-token credential, or anything malformed, as unpaired', async () => {
+    it('treats a bearer-token credential, or anything malformed, as not paired', async () => {
         const secrets = memorySecrets()
         secrets.values.set(
             'lake',
@@ -286,7 +291,7 @@ describe('Web Access Client key store (dashboard)', () => {
         assert.equal(database.values.size, 0, 'the check stores nothing')
     })
 
-    it('loads a record with key bytes from the old fallback as unpaired, and clears it', async () => {
+    it('loads a record with key bytes from the old fallback as not paired, and clears it', async () => {
         const database = memoryDatabase()
         database.values.set('lake', {
             version: 1,
@@ -303,7 +308,7 @@ describe('Web Access Client key store (dashboard)', () => {
         assert.equal(database.values.has('lake'), false)
     })
 
-    it('forgets a Home, and loads a cleared or foreign record as unpaired', async () => {
+    it('clears a Home, and loads a cleared or foreign record as not paired', async () => {
         const database = memoryDatabase()
         const store = createWebAccessClientKeyStore({ database, storage: null })
         await store.save({

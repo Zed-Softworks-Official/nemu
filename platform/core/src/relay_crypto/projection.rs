@@ -4,10 +4,13 @@
 //! publishes it through its outbox ([`crate::pairing::routing`]). Convex
 //! routes Relay traffic on the latest projection per Membership, and Access
 //! Clients verify it against the Controller key they pinned at pairing. A
-//! projection carries routing facts only: no role, name or email.
+//! projection carries routing facts only: no role, name or email. It names
+//! the Membership's Access Clients, so Convex accepts a Relay envelope only
+//! for an Access Client of the Account that posts it.
 //!
-//! The signed bytes are `lv_cat("nemu-membership-routing-v1", controllerId,
-//! u64be(identityEpoch), membershipId, accountId, state, u64be(sequence))`.
+//! The signed bytes are `lv_cat("nemu-membership-routing-v2", controllerId,
+//! u64be(identityEpoch), membershipId, accountId, state, u64be(sequence),
+//! lv_cat(accessClientIds...))`.
 //! The TypeScript twin is `@nemu/protocol/relay-crypto`'s `projection.ts`.
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
@@ -15,8 +18,11 @@ use serde::{Deserialize, Serialize};
 
 use super::wire::{MAX_SAFE_INTEGER, b64url_decode_64, b64url_encode, lv_cat, u64_be};
 
-const PROJECTION_LABEL: &[u8] = b"nemu-membership-routing-v1";
+const PROJECTION_LABEL: &[u8] = b"nemu-membership-routing-v2";
 const MAX_ID_BYTES: usize = 256;
+/// The most Access Clients one projection names. Core names the newest ones
+/// when a Membership has more; the rest cannot use Relay.
+pub const MAX_ROUTED_ACCESS_CLIENTS: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -46,6 +52,8 @@ pub struct MembershipProjection {
     pub state: MembershipRoutingState,
     /// Grows with every change this Controller publishes.
     pub sequence: u64,
+    /// The Membership's Access Clients that may use Relay. Empty when ended.
+    pub access_client_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +89,13 @@ impl MembershipProjection {
             self.account_id.as_bytes(),
             self.state.as_str().as_bytes(),
             &u64_be(self.sequence),
+            &lv_cat(
+                &self
+                    .access_client_ids
+                    .iter()
+                    .map(|id| id.as_bytes())
+                    .collect::<Vec<_>>(),
+            ),
         ])
     }
 
@@ -90,6 +105,9 @@ impl MembershipProjection {
             && valid_id(&self.account_id)
             && (1..=MAX_SAFE_INTEGER).contains(&self.identity_epoch)
             && (1..=MAX_SAFE_INTEGER).contains(&self.sequence)
+            && self.access_client_ids.len() <= MAX_ROUTED_ACCESS_CLIENTS
+            && self.access_client_ids.iter().all(|id| valid_id(id))
+            && (self.state == MembershipRoutingState::Active || self.access_client_ids.is_empty())
     }
 }
 

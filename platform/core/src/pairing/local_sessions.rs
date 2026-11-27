@@ -18,8 +18,13 @@ use crate::api::error::{ApiError, ApiResult};
 use crate::crypto::{random_token, sha256_hex};
 use crate::pairing::access_clients::touch_access_client;
 use crate::pairing::tombstones::access_client_status;
-use crate::relay_crypto::envelope::AccessClientStatus;
-use crate::relay_crypto::session::{LocalSessionChallenge, NONCE_LEN, verify_challenge};
+use crate::relay_crypto::envelope::{
+    AccessClientStatus, TOMBSTONED_ACCESS_CLIENT, UNKNOWN_ACCESS_CLIENT,
+};
+use crate::relay_crypto::session::{
+    LanRefusal, LocalSessionChallenge, NONCE_LEN, sign_refusal, verify_challenge,
+};
+use crate::relay_crypto::wire::b64url_encode;
 use crate::state::AppState;
 
 /// How long a Local session lasts. The Access Client renews it with a new
@@ -37,7 +42,7 @@ struct Session {
 #[derive(Default)]
 struct Inner {
     challenges: HashMap<[u8; NONCE_LEN], Instant>,
-    /// Keyed by the SHA-256 of the session token.
+    /// Keyed by the SHA-256 of the Local session's bearer string.
     sessions: HashMap<String, Session>,
 }
 
@@ -121,7 +126,7 @@ impl LocalSessions {
         }
     }
 
-    /// The Access Client a live session token names.
+    /// The Access Client a live Local session names.
     pub fn resolve(&self, token: &str) -> Option<Uuid> {
         self.resolve_at(token, Instant::now())
     }
@@ -154,20 +159,47 @@ fn refused(code: &str, message: &str) -> ApiError {
     ApiError::new(StatusCode::UNAUTHORIZED, code, message)
 }
 
-/// A tombstoned Access Client, over LAN. Its keys never work again.
+/// A tombstoned Access Client, over LAN. Its keys never work again. Unsigned
+/// on an ordinary request: the client opens a new Local session, whose
+/// refusal is signed.
 pub fn revoked() -> ApiError {
     refused(
-        "tombstoned_access_client",
+        TOMBSTONED_ACCESS_CLIENT,
         "This Access Client was revoked. Create new keys and pair again at home.",
     )
 }
 
-/// Opens a Local session for an Access Client that signed `nonce`.
+/// A pair-again refusal of a Local session, signed with the Controller's
+/// identity key over the Access Client's `client_nonce` ([`LanRefusal`]), so
+/// the client can tell it from one anybody on the network could send.
+fn signed_refusal(
+    state: &AppState,
+    error: ApiError,
+    access_client_id: &str,
+    client_nonce: &[u8; NONCE_LEN],
+) -> ApiError {
+    let signature = sign_refusal(
+        &state.identity.keypair.signing_key,
+        &LanRefusal {
+            controller_id: &state.identity.controller_id,
+            access_client_id,
+            code: &error.code,
+            client_nonce,
+        },
+    );
+    error.with_details(Some(serde_json::json!({
+        "refusalSignature": b64url_encode(&signature),
+    })))
+}
+
+/// Opens a Local session for an Access Client that signed `nonce`. A refusal
+/// that means "pair again" is signed over `client_nonce`.
 pub async fn open_local_session(
     state: &AppState,
     access_client_id: &str,
     nonce: &[u8],
     signature: &[u8],
+    client_nonce: &[u8; NONCE_LEN],
 ) -> ApiResult<OpenedSession> {
     // Spend the nonce first, so a refused signature cannot be retried on it.
     if !state.local_sessions.take_challenge(nonce) {
@@ -176,11 +208,12 @@ pub async fn open_local_session(
             "This challenge expired or was already used. Ask for a new one.",
         ));
     }
+    let pair_again = |error| signed_refusal(state, error, access_client_id, client_nonce);
     let unknown = || {
-        refused(
-            "unknown_access_client",
+        pair_again(refused(
+            UNKNOWN_ACCESS_CLIENT,
             "This Access Client is not paired with this Controller. Pair it again at home.",
-        )
+        ))
     };
     let id = Uuid::parse_str(access_client_id).map_err(|_| unknown())?;
     let signing_key = match access_client_status(&state.db, access_client_id)
@@ -188,7 +221,7 @@ pub async fn open_local_session(
         .map_err(ApiError::internal)?
     {
         AccessClientStatus::Active { signing_key } => signing_key,
-        AccessClientStatus::Tombstoned => return Err(revoked()),
+        AccessClientStatus::Tombstoned => return Err(pair_again(revoked())),
         AccessClientStatus::Unknown => return Err(unknown()),
     };
     verify_challenge(

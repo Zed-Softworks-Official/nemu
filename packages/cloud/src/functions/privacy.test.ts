@@ -59,6 +59,7 @@ const ALLOWED_FIELDS: Record<string, string[]> = {
         'accountId',
         'state',
         'sequence',
+        'accessClientIds',
         'signature',
     ],
     invites: ['controllerId', 'email', 'invitedByUserId', 'createdAt'],
@@ -160,6 +161,7 @@ describe('A sealed Relay exchange', () => {
                 accountId: USER_ID,
                 state: 'active',
                 sequence: 1,
+                accessClientIds: [ACCESS_CLIENT_ID],
                 signature: 'signature',
             })
         })
@@ -193,7 +195,7 @@ describe('A sealed Relay exchange', () => {
         expect(pending).toHaveLength(1)
         const reply = JSON.stringify({ type: 'session', role: 'owner' })
         const response = await sealResponse({
-            request: header,
+            request: sealed,
             keys,
             plaintext: utf8Encode(reply),
             controllerSigner: ed25519Signer(controllerSigningSecret),
@@ -214,7 +216,7 @@ describe('A sealed Relay exchange', () => {
             new TextDecoder().decode(
                 openResponse({
                     sealed: delivered.sealed as typeof response,
-                    request: header,
+                    request: sealed,
                     keys,
                     controllerSigningKey,
                 })

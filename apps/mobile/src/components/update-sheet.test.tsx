@@ -32,7 +32,7 @@ jest.mock('react-native-drawer-layout', () => {
 jest.mock('~/components/home-session', () => ({
     useHomeSession: () => ({
         activeHome: { controllerId: 'lake', name: 'Lake House' },
-        forgetPairing: () => {},
+        clearPairing: () => {},
         switchHome: () => {},
     }),
 }))

@@ -1,4 +1,8 @@
-import { type AccessClientKeyStore, useController } from '@nemu/controller'
+import {
+    type AccessClientKeyStore,
+    PAIR_AGAIN_ERROR_CODES,
+    useController,
+} from '@nemu/controller'
 import {
     createMemoryAccessClientKeyStore,
     FakeController,
@@ -32,7 +36,7 @@ const LAKE: MobileHome = {
 const CITY: MobileHome = { controllerId: 'city', name: 'City Flat' }
 
 function Session() {
-    const { route, activeHome, forgetPairing } = useHomeSession()
+    const { route, activeHome, clearPairing } = useHomeSession()
     const { status } = useController()
     if (route === 'select-home') return <SelectHomeScreen />
     if (route === 'pair') return <PairHomeScreen />
@@ -43,7 +47,7 @@ function Session() {
                 Controlling {activeHome?.name} via {status.mode}
             </Text>
             <Button
-                onPress={() => forgetPairing()}
+                onPress={() => clearPairing()}
                 title="Forget on this phone"
             />
         </>
@@ -112,7 +116,7 @@ describe('Home selection', () => {
         expect(screen.getByText('No Homes yet')).toBeTruthy()
     })
 
-    it('asks an unpaired phone to pair with the chosen Home', async () => {
+    it('asks a phone that is not paired to pair with the chosen Home', async () => {
         const { tree } = setup()
         await render(tree([LAKE, CITY]))
         await fireEvent.press(
@@ -232,7 +236,7 @@ describe('Returning to a paired Home', () => {
         })
     }
 
-    it('can pair again after forgetting this phone', async () => {
+    it('can pair again after clearing the keys on this phone', async () => {
         const { tree, keyStore } = await pairedSetup()
         await render(tree([LAKE]))
         await screen.findByText('Controlling Lake House via lan')
@@ -263,15 +267,21 @@ describe('Returning to a paired Home', () => {
         await render(tree([LAKE]))
 
         await screen.findByRole('button', { name: 'Pair this phone' })
-        expect(
-            screen.getByText(/no longer has access to Lake House/)
-        ).toBeTruthy()
+        expect(screen.getByText(/was removed from Lake House/)).toBeTruthy()
         expect(screen.getByText(/Pair it again at home/)).toBeTruthy()
         expect(await keyStore.load('lake')).toBeNull()
     })
 })
 
 describe('pairAgainNotice', () => {
+    it('gives every reason to pair again its own notice', () => {
+        const notices = PAIR_AGAIN_ERROR_CODES.map((reason) =>
+            pairAgainNotice(reason, 'Lake House')
+        )
+        expect(new Set(notices).size).toBe(PAIR_AGAIN_ERROR_CODES.length)
+        for (const notice of notices) expect(notice).toMatch(/Lake House/)
+    })
+
     it('tells a phone that held a retired bearer token to pair again at home', () => {
         expect(pairAgainNotice('bearer_token_retired', 'Lake House')).toBe(
             'Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using Lake House.'

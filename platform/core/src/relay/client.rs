@@ -55,8 +55,8 @@ async fn run_relay_loop(state: AppState) {
         state.clone(),
         crate::pairing::routing::HttpSink::new(&site_url, state.registration_secret.clone()),
     );
-    // Commissioning progress stays on the LAN WebSocket for now.
-    // TODO(NEM-63): seal it into capability pushes over encrypted Relay.
+    // Commissioning progress stays on the LAN WebSocket for now. TODO(NEM-123):
+    // push it here as sealed Relay pushes on the capability watch path.
 
     loop {
         match run_subscription_relay(&state, &site_url, &cloud_url).await {

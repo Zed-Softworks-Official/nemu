@@ -359,14 +359,16 @@ fn responses_seal_open_and_reject() {
     let vectors = vectors();
     let keys = keys(&vectors);
     for v in array(&vectors["responses"]) {
-        let (_, request, request_keys) = find_request(&vectors, s(&v["request"]));
+        let (request, _, request_keys) = find_request(&vectors, s(&v["request"]));
+        let request: SealedRequest = serde_json::from_value(request["sealed"].clone()).unwrap();
         let expected: SealedResponse = serde_json::from_value(v["sealed"].clone()).unwrap();
         let sealed = envelope::seal_response(
             &request,
             &request_keys,
             s(&v["plaintext"]).as_bytes(),
             &keys.controller.signing,
-        );
+        )
+        .unwrap();
         assert_eq!(sealed, expected);
         let plaintext = envelope::open_response(
             &expected,
@@ -378,7 +380,8 @@ fn responses_seal_open_and_reject() {
         assert_eq!(plaintext, s(&v["plaintext"]).as_bytes());
     }
     for r in array(&vectors["rejections"]["responses"]) {
-        let (_, request, request_keys) = find_request(&vectors, s(&r["request"]));
+        let (request, _, request_keys) = find_request(&vectors, s(&r["request"]));
+        let request: SealedRequest = serde_json::from_value(request["sealed"].clone()).unwrap();
         let sealed: SealedResponse = serde_json::from_value(r["sealed"].clone()).unwrap();
         let err = envelope::open_response(
             &sealed,
@@ -542,6 +545,78 @@ fn local_session_challenges_sign_verify_and_reject() {
             "{}",
             s(&r["name"])
         );
+    }
+}
+
+#[test]
+fn ed25519_and_x25519_edge_cases_are_refused() {
+    let vectors = vectors();
+    let edge = &vectors["ed25519"];
+    let key = |v: &Value| -> [u8; 32] { h(&v["bytes"]).try_into().unwrap() };
+    for v in array(&edge["weakSigningKeys"]) {
+        assert!(
+            !session::acceptable_signing_key(&key(v)),
+            "{}",
+            s(&v["name"])
+        );
+    }
+    for v in array(&edge["weakEncryptionKeys"]) {
+        assert!(
+            !session::acceptable_encryption_key(&key(v)),
+            "{}",
+            s(&v["name"])
+        );
+    }
+    let keys = keys(&vectors);
+    for party in [&keys.controller, &keys.access_client] {
+        assert!(session::acceptable_signing_key(&party.signing_public));
+    }
+
+    let v = &edge["cofactoredOnly"];
+    let public: [u8; 32] = h(&v["signer"]).try_into().unwrap();
+    let signature: [u8; 64] = h(&v["signature"]).try_into().unwrap();
+    assert!(session::acceptable_signing_key(&public));
+    let verifying = ed25519_dalek::VerifyingKey::from_bytes(&public).unwrap();
+    let signature = ed25519_dalek::Signature::from_bytes(&signature);
+    assert!(
+        verifying
+            .verify_strict(&h(&v["message"]), &signature)
+            .is_err()
+    );
+}
+
+#[test]
+fn lan_refusals_sign_and_reject() {
+    let vectors = vectors();
+    let keys = keys(&vectors);
+    let verifies = |v: &Value| {
+        let nonce = h(&v["clientNonce"]);
+        let refusal = session::LanRefusal {
+            controller_id: s(&v["controllerId"]),
+            access_client_id: s(&v["accessClientId"]),
+            code: s(&v["code"]),
+            client_nonce: &nonce,
+        };
+        let signature: [u8; 64] = h(&v["signature"]).try_into().unwrap();
+        let valid = ed25519_dalek::VerifyingKey::from_bytes(&keys.controller.signing_public)
+            .unwrap()
+            .verify_strict(
+                &session::refusal_message(&refusal),
+                &ed25519_dalek::Signature::from_bytes(&signature),
+            )
+            .is_ok();
+        (
+            hex::encode(session::sign_refusal(&keys.controller.signing, &refusal)),
+            valid,
+        )
+    };
+    for v in array(&vectors["lanRefusals"]) {
+        let (signature, valid) = verifies(v);
+        assert_eq!(signature, s(&v["signature"]), "{}", s(&v["name"]));
+        assert!(valid, "{}", s(&v["name"]));
+    }
+    for r in array(&vectors["rejections"]["lanRefusals"]) {
+        assert!(!verifies(r).1, "{}", s(&r["name"]));
     }
 }
 

@@ -10,9 +10,6 @@ import {
 } from '@nemu/protocol/relay-crypto'
 import type { AccessClientEnrollment } from '../access-client-keys.ts'
 
-/** Error code for a Membership the Controller signed as ended. */
-export const MEMBERSHIP_ENDED_ERROR_CODE = 'membership_ended'
-
 /**
  * This Access Client's own projection, verified, or null when there is none
  * it can trust: none published yet, unreachable, forged, for another

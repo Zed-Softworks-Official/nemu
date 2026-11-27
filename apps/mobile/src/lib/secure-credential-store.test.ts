@@ -1,4 +1,8 @@
-import { utf8Encode } from '@nemu/protocol/relay-crypto'
+import {
+    ed25519PublicKey,
+    utf8Encode,
+    x25519PublicKey,
+} from '@nemu/protocol/relay-crypto'
 import * as SecureStore from 'expo-secure-store'
 
 import { createSecureAccessClientKeyStore } from '~/lib/secure-credential-store'
@@ -11,8 +15,8 @@ function enrollment(controllerId: string) {
         accessClientId: `ac-${controllerId}`,
         membershipId: 'membership',
         grant: 'h.p.s',
-        controllerSigningKey: new Uint8Array(32).fill(3),
-        controllerEncryptionKey: new Uint8Array(32).fill(4),
+        controllerSigningKey: ed25519PublicKey(new Uint8Array(32).fill(3)),
+        controllerEncryptionKey: x25519PublicKey(new Uint8Array(32).fill(4)),
     }
 }
 
@@ -38,7 +42,7 @@ describe('Access Client keys in the secure store', () => {
         expect(await reopened.load('city')).toBeNull()
     })
 
-    it('treats an alpha bearer token as unpaired and deletes it', async () => {
+    it('treats an alpha bearer token as not paired and deletes it', async () => {
         // Where alpha builds kept the token for this Account and Home.
         const legacy = 'nemu.user_alice.access-client.lake'
         SecureStore.setItem(legacy, JSON.stringify({ clientToken: 'nemu_old' }))
