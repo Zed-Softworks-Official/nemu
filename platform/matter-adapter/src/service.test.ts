@@ -817,3 +817,118 @@ describe('Service meters', () => {
         }
     })
 })
+
+const STRIP: AttributeSnapshot = {
+    '0/40/1': 'Nemu Harness',
+    '0/40/3': 'Harness Strip',
+    '0/29/0': [{ deviceType: 22, revision: 1 }],
+    '1/29/0': [{ deviceType: 266, revision: 1 }],
+    '1/6/0': false,
+    '2/29/0': [{ deviceType: 266, revision: 1 }],
+    '2/6/0': false,
+}
+
+/** Fails every invoke on endpoint 1, as an outlet that stopped answering. */
+class FirstOutletFails extends FakeSession {
+    override async invoke(...args: unknown[]) {
+        this.invoked.push(args)
+        if (args[1] === 1) throw new Error('outlet 1 timed out')
+    }
+}
+
+async function commissionedStrip(session = new FakeSession()) {
+    session.joining = STRIP
+    const harness = await started(session)
+    await harness.transport.deliver(
+        'matter/bridge/request/commission',
+        JSON.stringify({ code: '34970112332', transaction: 't1' })
+    )
+    await settle()
+    return harness
+}
+
+describe('Service with a strip', () => {
+    it('publishes one Device with each outlet in its state', async () => {
+        const { transport } = await commissionedStrip()
+        const devices = transport.on('matter/bridge/devices').at(-1) as {
+            external_id: string
+            type: string
+        }[]
+        assert.deepEqual(
+            devices.map((device) => [device.external_id, device.type]),
+            [['1', 'strip']]
+        )
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            outlets: [
+                { id: '1', name: 'Outlet 1', state: 'OFF' },
+                { id: '2', name: 'Outlet 2', state: 'OFF' },
+            ],
+        })
+    })
+
+    it('announces the folded per-endpoint IDs as gone, once each', async () => {
+        const { transport } = await commissionedStrip()
+        await transport.deliver(
+            'matter/bridge/request/commission',
+            JSON.stringify({ code: '34970112332', transaction: 't2' })
+        )
+        await settle()
+        assert.deepEqual(
+            events(transport)
+                .filter((event) => event.type === 'device_leave')
+                .map((event) => event.data.ieee_address),
+            ['1:1', '1:2', '2:1', '2:2']
+        )
+    })
+
+    it('sets only the named outlet, and confirms it from the report', async () => {
+        const { session, transport } = await commissionedStrip()
+        await transport.deliver(
+            'matter/1/set',
+            JSON.stringify({ state: 'ON', outlet: '2', transaction: 'c1' })
+        )
+        await settle()
+        assert.deepEqual(
+            session.invoked.map((args) => args.slice(0, 4)),
+            [['1', 2, 6, 0x01]]
+        )
+        session.report('1', { '2/6/0': true })
+        await settle()
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            outlets: [
+                { id: '1', name: 'Outlet 1', state: 'OFF' },
+                { id: '2', name: 'Outlet 2', state: 'ON' },
+            ],
+        })
+    })
+
+    it('sets every outlet without one, past a failing outlet', async () => {
+        const { session, transport } = await commissionedStrip(
+            new FirstOutletFails()
+        )
+        await transport.deliver(
+            'matter/1/set',
+            JSON.stringify({ state: 'OFF', transaction: 'c2' })
+        )
+        await settle()
+        assert.deepEqual(
+            session.invoked.map((args) => args.slice(0, 4)),
+            [
+                ['1', 1, 6, 0x00],
+                ['1', 2, 6, 0x00],
+            ]
+        )
+        assert.deepEqual(
+            events(transport)
+                .filter((event) => event.type === 'command_failed')
+                .map((event) => event.data),
+            [
+                {
+                    ieee_address: '1',
+                    transaction: 'c2',
+                    error: 'outlet 1 timed out',
+                },
+            ]
+        )
+    })
+})

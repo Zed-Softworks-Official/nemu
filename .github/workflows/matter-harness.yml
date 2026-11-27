@@ -139,6 +139,19 @@ jobs:
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness
 
+      # NEM-117: the strip steps follow remove-light, so they need the light gone. Until
+      # remove-light is in scope above (NEM-119), they run on their own, with no light.
+      # adapter-restarts is a Rust workaround and joins once restarts persist (NEM-119).
+      - name: Compare the matter.js adapter with the golden strip payloads
+        env:
+          TMPDIR: ${{ runner.temp }}/matter-harness
+          MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
+          MATTER_HARNESS_OUTPUT: ${{ github.workspace }}/platform/matter-harness/.run/strip-run.json
+          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,commission-strip,strip-outlet-2-on,strip-outlet-1-on,strip-all-off
+        run: |
+          mkdir -p "$TMPDIR"
+          pnpm --filter @nemu/matter-harness harness
+
       - name: Upload the run on failure
         if: failure()
         uses: actions/upload-artifact@v4

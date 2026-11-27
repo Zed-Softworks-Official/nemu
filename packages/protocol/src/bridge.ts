@@ -101,6 +101,11 @@ export const bridgeEventSchema = z.discriminatedUnion('type', [
             error: z.string().optional(),
         }),
     }),
+    /** A Device ID that is gone, for example one folded into a strip. */
+    z.strictObject({
+        type: z.literal('device_leave'),
+        data: z.strictObject({ ieee_address: z.string() }),
+    }),
     z.strictObject({
         type: z.literal('commission_progress'),
         data: z.strictObject({ stage: z.string(), message: z.string() }),

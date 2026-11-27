@@ -10,7 +10,7 @@ import {
     bridgeObservationReportSchema,
 } from '@nemu/protocol'
 import type { AttributeSnapshot } from '../attributes.ts'
-import { BULB, HARNESS_PLUG } from '../mapping/fixtures.test-support.ts'
+import { BULB, HARNESS_PLUG, STRIP } from '../mapping/fixtures.test-support.ts'
 import { mapNode } from '../mapping/index.ts'
 import {
     PLUG_UNDER_LOAD,
@@ -233,6 +233,39 @@ describe('meterPublication', () => {
         assert.equal(
             observation(publication, 'current').reading.value.value,
             800
+        )
+    })
+})
+
+describe('strip meters', () => {
+    it('measures each outlet as its Component, and an aggregator as the Device', () => {
+        const snapshot: AttributeSnapshot = {
+            ...STRIP,
+            '2/144/8': 4_000,
+            '3/144/8': 6_000,
+        }
+        const publication = meterPublication(
+            deviceOf(snapshot, '17'),
+            snapshot,
+            STAMP,
+            {}
+        )
+        assert.ok(publication)
+        assert.deepEqual(
+            publication.report.observations
+                .filter((entry) => entry.identity.kind === 'power')
+                .map((entry) => [
+                    entry.identity.physicalScope,
+                    entry.identity.componentPath,
+                    entry.reading.status === 'value'
+                        ? entry.reading.value.value
+                        : undefined,
+                ]),
+            [
+                [{ kind: 'component', componentId: '2' }, ['2'], 4_000],
+                [{ kind: 'component', componentId: '3' }, ['3'], 6_000],
+                [{ kind: 'device' }, [], 12_500],
+            ]
         )
     })
 })

@@ -18,11 +18,12 @@ import {
 } from './commissioning.ts'
 import type { Log } from './log.ts'
 import {
+    collapsedLegacyIds,
     commandsForSet,
     deviceDescriptor,
     type EndpointDevice,
     isLimitAttribute,
-    mapNode,
+    mapNodeWithFallback,
     stateForDevice,
     targetEndpoints,
 } from './mapping/index.ts'
@@ -55,6 +56,8 @@ export class Service {
     #commissioning: AbortController | undefined
     /** The last step the commissioning in progress reached. */
     #reached: CommissioningStep = 'discovering'
+    /** Legacy Device IDs already announced as gone. */
+    #leaves = new Set<string>()
 
     constructor(
         private readonly session: MatterSession,
@@ -230,9 +233,12 @@ export class Service {
         const { actions, ignored } = commandsForSet(payload)
         if (ignored.length > 0)
             this.log.info(`ignored set keys: ${ignored.join(', ')}`)
-        try {
-            for (const endpoint of targetEndpoints(device, payload)) {
-                for (const action of actions) {
+        // Keep going after a failure, so one outlet of a strip does not stop
+        // the others, and report the first one.
+        let failure: { error: unknown } | undefined
+        for (const endpoint of targetEndpoints(device, payload)) {
+            for (const action of actions) {
+                try {
                     await this.session.invoke(
                         device.nodeId,
                         endpoint,
@@ -240,9 +246,13 @@ export class Service {
                         action.command,
                         action.fields
                     )
+                } catch (error) {
+                    failure ??= { error }
                 }
             }
-        } catch (error) {
+        }
+        if (failure) {
+            const { error } = failure
             this.log.warn(`set on ${deviceId} failed: ${String(error)}`)
             await this.bus.event({
                 type: 'command_failed',
@@ -345,8 +355,18 @@ export class Service {
         }
         const snapshot = this.session.snapshot(nodeId)
         if (!snapshot) return
-        for (const device of mapNode(nodeId, snapshot))
+        // TODO(NEM-119): outlet names from the name store (`{nodeId}#{endpoint}`).
+        for (const device of mapNodeWithFallback(nodeId, snapshot))
             this.#devices.set(device.id, device)
+        // Per-endpoint IDs a strip folded in leave, once each, as in Rust.
+        for (const id of collapsedLegacyIds(nodeId, snapshot)) {
+            if (this.#leaves.has(id)) continue
+            this.#leaves.add(id)
+            void this.bus.event({
+                type: 'device_leave',
+                data: { ieee_address: id },
+            })
+        }
     }
 }
 

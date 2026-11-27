@@ -6,9 +6,18 @@
 export {
     commandsForSet,
     type DeviceCommand,
+    outletFromSet,
     type SetCommands,
     targetEndpoints,
 } from './commands.ts'
 export { deviceDescriptor, isLimitAttribute } from './descriptor.ts'
-export { type DeviceKind, type EndpointDevice, mapNode } from './node.ts'
+export {
+    collapsedLegacyIds,
+    type DeviceKind,
+    deviceCoversEndpoint,
+    type EndpointDevice,
+    mapNode,
+    mapNodeWithFallback,
+    type StripOutlet,
+} from './node.ts'
 export { stateForDevice } from './state.ts'

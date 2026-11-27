@@ -10,7 +10,7 @@ import {
     COMMAND_ON,
     COMMAND_TOGGLE,
 } from './clusters.ts'
-import type { EndpointDevice } from './node.ts'
+import { deviceCoversEndpoint, type EndpointDevice } from './node.ts'
 import { asNumber } from './snapshot.ts'
 import { round4 } from './state.ts'
 
@@ -158,8 +158,31 @@ export function hexToXy(hex: string): [number, number] | undefined {
 /** The endpoints a set goes to. */
 export function targetEndpoints(
     device: EndpointDevice,
-    _payload: Record<string, unknown>
+    payload: Record<string, unknown>
 ): number[] {
-    // TODO(NEM-117): a strip targets the outlet the payload names, else all outlets.
+    // The outlet the payload names, else every outlet of a strip.
+    const outlet = outletFromSet(payload)
+    if (outlet !== undefined && deviceCoversEndpoint(device, outlet))
+        return [outlet]
+    if (device.outlets) return device.outlets.map((entry) => entry.endpoint)
     return [device.endpoint]
+}
+
+/** The `outlet` of a set, as a number or a decimal string. */
+export function outletFromSet(
+    payload: Record<string, unknown>
+): number | undefined {
+    const raw = payload.outlet
+    const value =
+        typeof raw === 'number'
+            ? raw
+            : typeof raw === 'string' && /^\d+$/.test(raw.trim())
+              ? Number(raw.trim())
+              : undefined
+    return value !== undefined &&
+        Number.isInteger(value) &&
+        value >= 0 &&
+        value <= 0xffff
+        ? value
+        : undefined
 }
