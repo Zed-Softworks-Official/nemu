@@ -27,6 +27,7 @@ import {
 } from './envelope.ts'
 import { type AccessGrant, issueGrant } from './grant.ts'
 import { x25519PublicKey } from './hpke.ts'
+import { signLocalSessionChallenge } from './session.ts'
 import { ed25519PublicKey, ed25519Signer } from './signing.ts'
 
 /** Deterministic 32 bytes for a vector input. */
@@ -424,6 +425,16 @@ export async function buildRelayCryptoVectors() {
     const [grantHeader, grantPayload, grantSignature] = grantJws.split('.')
     const noneHeader = b64urlEncode(utf8Encode('{"alg":"none","typ":"JWT"}'))
 
+    const sessionChallenge = {
+        controllerId: CONTROLLER_ID,
+        accessClientId: grant.accessClientId,
+        nonce: seed('local-session/nonce'),
+    }
+    const sessionSignature = await signLocalSessionChallenge(
+        signer(accessClient),
+        sessionChallenge
+    )
+
     const policy = {
         controllerId: CONTROLLER_ID,
         identityEpoch: IDENTITY_EPOCH,
@@ -475,7 +486,41 @@ export async function buildRelayCryptoVectors() {
                 jws: grantJws,
             },
         ],
+        /** Signed by `keys.accessClient` (NEM-126). */
+        localSessions: [
+            {
+                name: 'Local session challenge',
+                controllerId: sessionChallenge.controllerId,
+                accessClientId: sessionChallenge.accessClientId,
+                nonce: hexEncode(sessionChallenge.nonce),
+                signature: hexEncode(sessionSignature),
+            },
+        ],
         rejections: {
+            /** Each must fail verification against `keys.accessClient`. */
+            localSessions: [
+                {
+                    name: 'for another Access Client',
+                    controllerId: sessionChallenge.controllerId,
+                    accessClientId: 'ac_other',
+                    nonce: hexEncode(sessionChallenge.nonce),
+                    signature: hexEncode(sessionSignature),
+                },
+                {
+                    name: 'for another Controller',
+                    controllerId: 'nemu_fedcba9876543210',
+                    accessClientId: sessionChallenge.accessClientId,
+                    nonce: hexEncode(sessionChallenge.nonce),
+                    signature: hexEncode(sessionSignature),
+                },
+                {
+                    name: 'over another nonce',
+                    controllerId: sessionChallenge.controllerId,
+                    accessClientId: sessionChallenge.accessClientId,
+                    nonce: hexEncode(seed('local-session/other-nonce')),
+                    signature: hexEncode(sessionSignature),
+                },
+            ],
             /**
              * Opened by the Controller with `policy`, its encryption secret,
              * an Access Client in `accessClient` state and a window that has

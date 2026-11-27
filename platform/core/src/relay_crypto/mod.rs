@@ -14,6 +14,8 @@
 //! - [`envelope`]: sealed Relay requests, responses and pushes.
 //! - [`grant`]: Access grants as EdDSA JWS.
 //! - [`replay`]: the 64-entry sliding counter window.
+//! - [`session`]: the Local session challenge, and checks on Access Client
+//!   public keys before Core binds them into an Access grant.
 //!
 //! Nothing in Core calls these yet; NEM-126 onwards wires them in.
 #![cfg_attr(not(test), allow(dead_code))]
@@ -23,7 +25,8 @@ pub mod envelope;
 pub mod grant;
 pub mod hpke;
 pub mod replay;
-mod wire;
+pub mod session;
+pub(crate) mod wire;
 
 #[cfg(test)]
 mod vectors;

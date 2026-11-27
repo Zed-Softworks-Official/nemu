@@ -311,7 +311,39 @@
             "jws": "eyJhbGciOiJFZERTQSIsInR5cCI6Im5lbXUtYWNjZXNzLWdyYW50K2p3dCJ9.eyJjb250cm9sbGVySWQiOiJuZW11XzAxMjM0NTY3ODlhYmNkZWYiLCJhY2Nlc3NDbGllbnRJZCI6ImFjXzdmM2EiLCJtZW1iZXJzaGlwSWQiOiJtZW1fNDIiLCJzaWduaW5nS2V5IjoidHY3LWF3aUp6LU5XLTV6bm9iRUV4X2JmaC1PTGN5bmlnd2ZtWVIyekZqSSIsImVuY3J5cHRpb25LZXkiOiJGTXRZajFQbVByZWpwcjhMX3NfYXNYZlZ5bHppQWFXNVR6VFp3V0dOWVhNIiwiaWF0IjoxODAwMDAwMDAwfQ.MFds3GRPPdgDykvRByLbjM1yVp0S9GqyIODKrd_VjGQXf3Ob_oP6mOsBnFlOayETOTEZZaIuG5dqvMFnDfNqDg"
         }
     ],
+    "localSessions": [
+        {
+            "name": "Local session challenge",
+            "controllerId": "nemu_0123456789abcdef",
+            "accessClientId": "ac_7f3a",
+            "nonce": "28d45eff3fdff9ea0995947e8ebcab753239bf8be5a6b1a15a4778d08edb7a21",
+            "signature": "a980a8717453e56f7f444d12d239944f3a7eeb2cb5d009cdcd58f2ea615393f5a46fc7c5cee37d45f12b96f9f14625d694d67f13221f4fa24f9e82259777e90e"
+        }
+    ],
     "rejections": {
+        "localSessions": [
+            {
+                "name": "for another Access Client",
+                "controllerId": "nemu_0123456789abcdef",
+                "accessClientId": "ac_other",
+                "nonce": "28d45eff3fdff9ea0995947e8ebcab753239bf8be5a6b1a15a4778d08edb7a21",
+                "signature": "a980a8717453e56f7f444d12d239944f3a7eeb2cb5d009cdcd58f2ea615393f5a46fc7c5cee37d45f12b96f9f14625d694d67f13221f4fa24f9e82259777e90e"
+            },
+            {
+                "name": "for another Controller",
+                "controllerId": "nemu_fedcba9876543210",
+                "accessClientId": "ac_7f3a",
+                "nonce": "28d45eff3fdff9ea0995947e8ebcab753239bf8be5a6b1a15a4778d08edb7a21",
+                "signature": "a980a8717453e56f7f444d12d239944f3a7eeb2cb5d009cdcd58f2ea615393f5a46fc7c5cee37d45f12b96f9f14625d694d67f13221f4fa24f9e82259777e90e"
+            },
+            {
+                "name": "over another nonce",
+                "controllerId": "nemu_0123456789abcdef",
+                "accessClientId": "ac_7f3a",
+                "nonce": "9f254c050b1ddfbff0b385961da6b2d83bcda65f33247a89e6a7daa3fbbffe49",
+                "signature": "a980a8717453e56f7f444d12d239944f3a7eeb2cb5d009cdcd58f2ea615393f5a46fc7c5cee37d45f12b96f9f14625d694d67f13221f4fa24f9e82259777e90e"
+            }
+        ],
         "requests": [
             {
                 "name": "addressed to another Home",
