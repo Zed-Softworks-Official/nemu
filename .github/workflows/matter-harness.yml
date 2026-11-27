@@ -131,9 +131,10 @@ jobs:
         env:
           TMPDIR: ${{ runner.temp }}/matter-harness
           MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
-          # NEM-115: commission, on/off and health check.
+          # NEM-115: commission, on/off and health check. NEM-116: light brightness, color temp.
           # NEM-118: Capabilities, observations and assigned Capability IDs.
-          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,health-check,commission-without-code
+          # NEM-120: commission-cancel.
+          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,health-check,commission-without-code,commission-light,light-on,light-brightness,light-brightness-below-minimum,light-brightness-above-maximum,light-color-temperature,light-color-temperature-above-maximum,light-off,commission-cancel
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness

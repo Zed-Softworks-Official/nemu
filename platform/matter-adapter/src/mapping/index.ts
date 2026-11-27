@@ -9,6 +9,6 @@ export {
     type SetCommands,
     targetEndpoints,
 } from './commands.ts'
-export { deviceDescriptor } from './descriptor.ts'
+export { deviceDescriptor, isLimitAttribute } from './descriptor.ts'
 export { type DeviceKind, type EndpointDevice, mapNode } from './node.ts'
 export { stateForDevice } from './state.ts'
