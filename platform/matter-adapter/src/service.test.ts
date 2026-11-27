@@ -1298,3 +1298,86 @@ describe('Service start after the Rust adapter (NEM-121)', () => {
         )
     })
 })
+
+/**
+ * The exact `bridge/event` payloads Core reads, as the Rust adapter published
+ * them (platform/matter/src/service.rs `publish_progress`, `drop_node` and the
+ * commission failure path, deleted in NEM-121). The harness doesn't record
+ * `bridge/event`, so these tests replace golden coverage for it: a payload
+ * that gains, loses or renames a field fails here.
+ */
+describe('bridge/event payloads, pinned to the Rust adapter', () => {
+    const bridgeEvents = (transport: FakeTransport) =>
+        transport.published.filter(
+            (message) => message.topic === 'matter/bridge/event'
+        )
+
+    it('commission_progress is {type, data: {stage, message}}, not retained', async () => {
+        const { transport } = await commission(new FakeSession(), {})
+        assert.deepStrictEqual(bridgeEvents(transport)[0], {
+            topic: 'matter/bridge/event',
+            payload: {
+                type: 'commission_progress',
+                data: { stage: 'looking', message: 'Looking for your device' },
+            },
+            retain: false,
+        })
+    })
+
+    it('a started device_interview is {ieee_address: "commissioning", status, message}', async () => {
+        const { transport } = await commission(new FakeSession(), {})
+        assert.deepStrictEqual(bridgeEvents(transport)[1], {
+            topic: 'matter/bridge/event',
+            payload: {
+                type: 'device_interview',
+                data: {
+                    ieee_address: 'commissioning',
+                    status: 'started',
+                    message: 'Looking for your device',
+                },
+            },
+            retain: false,
+        })
+    })
+
+    it('a failed device_interview is {ieee_address: "commissioning", status, error}', async () => {
+        const session = new FakeSession()
+        session.failNetwork = new Error('not discovered')
+        const { transport } = await commission(session, {})
+        const failed = bridgeEvents(transport).filter(
+            (message) => (message.payload as Event).data.status === 'failed'
+        )
+        assert.deepStrictEqual(failed, [
+            {
+                topic: 'matter/bridge/event',
+                payload: {
+                    type: 'device_interview',
+                    data: {
+                        ieee_address: 'commissioning',
+                        status: 'failed',
+                        error: 'Put the device back in pairing mode and try again. If it is new, enter your 2.4 GHz home Wi-Fi.',
+                    },
+                },
+                retain: false,
+            },
+        ])
+    })
+
+    it('device_leave is {ieee_address: <Device ID>}', async () => {
+        const { transport } = await commissionedPlug()
+        await transport.deliver(
+            'matter/bridge/request/device/remove',
+            JSON.stringify({ id: '1', transaction: 'rm1' })
+        )
+        const leaves = bridgeEvents(transport).filter(
+            (message) => (message.payload as Event).type === 'device_leave'
+        )
+        assert.deepStrictEqual(leaves, [
+            {
+                topic: 'matter/bridge/event',
+                payload: { type: 'device_leave', data: { ieee_address: '1' } },
+                retain: false,
+            },
+        ])
+    })
+})
