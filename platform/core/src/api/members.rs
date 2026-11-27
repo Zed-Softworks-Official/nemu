@@ -270,6 +270,9 @@ pub async fn bootstrap_owner(
     Ok(MemberResource::from(&member))
 }
 
+/// No longer reachable: Relay carried session mints, and a sealed Relay
+/// envelope never carries a bearer token (NEM-129). NEM-131 deletes it.
+#[allow(dead_code)]
 pub async fn mint_session(
     state: &AppState,
     input: SessionMintInput,

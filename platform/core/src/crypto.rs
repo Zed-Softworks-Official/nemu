@@ -1,6 +1,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::{Rng, RngExt};
 use sha2::{Digest, Sha256};
 
@@ -63,11 +63,6 @@ impl ControllerKeypair {
             private_key_b64: BASE64.encode(signing_key.to_bytes()),
             signing_key,
         }
-    }
-
-    pub fn sign_b64(&self, message: &[u8]) -> String {
-        let sig = self.signing_key.sign(message);
-        BASE64.encode(sig.to_bytes())
     }
 }
 

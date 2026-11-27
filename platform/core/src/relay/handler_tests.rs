@@ -1,0 +1,541 @@
+//! Seam 2 (NEM-63 spec): Core's Relay handler in-process, fed sealed
+//! envelopes from a fake Relay mailbox. The Access Client side seals with
+//! Core's own `relay_crypto`, which the shared wire vectors tie to the
+//! TypeScript client, and checks every reply against the Controller key it
+//! pinned at pairing.
+//!
+//! These tests need the isolated test PostgreSQL
+//! (`CAPABILITY_TEST_DATABASE_URL`), as the other database tests do.
+
+use std::sync::Arc;
+
+use diesel::prelude::*;
+use ed25519_dalek::SigningKey;
+use serde_json::{Value, json};
+use uuid::Uuid;
+
+use super::*;
+use crate::crypto::{ControllerEncryptionKey, ControllerKeypair};
+use crate::db::schema::{access_clients, command_outcomes, members, rooms, settings};
+use crate::identity::ControllerIdentity;
+use crate::pairing::access_clients::{AccessClientInput, insert_access_client};
+use crate::pairing::members::insert_member;
+use crate::relay_crypto::envelope::{open_response, seal_request};
+use crate::relay_crypto::hpke;
+use crate::state::{AppState, DbPool, HealthFlags};
+
+const CONTROLLER_ID: &str = "nemu_00000000cafef00d";
+
+async fn empty_home() -> DbPool {
+    let pool = crate::db::test_pool();
+    let conn = pool.get().await.unwrap();
+    conn.interact(|conn| {
+        // Replay windows and stored outcomes go with their Access Clients.
+        diesel::delete(access_clients::table).execute(conn)?;
+        diesel::delete(members::table).execute(conn)?;
+        diesel::delete(settings::table.find(IDENTITY_EPOCH_SETTING)).execute(conn)
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    pool
+}
+
+fn app_state(pool: DbPool, identity: Arc<ControllerIdentity>) -> AppState {
+    AppState {
+        db: pool.clone(),
+        history_query_pool: pool.clone(),
+        history_query_slots: Arc::new(tokio::sync::Semaphore::new(1)),
+        history_cursors: Arc::default(),
+        registry: Arc::new(crate::devices::registry::DeviceRegistry::new()),
+        state_cache: Arc::new(crate::devices::state_cache::StateCache::new()),
+        capabilities: Arc::new(crate::capabilities::CapabilityService::new(
+            pool.clone(),
+            pool,
+        )),
+        mqtt: crate::mqtt::connection::test_handle(),
+        events: tokio::sync::broadcast::channel(8).0,
+        health: Arc::new(HealthFlags::default()),
+        identity,
+        convex_site_url: None,
+        registration_secret: None,
+        lan_ip: None,
+        updater: Arc::new(crate::updater_control::SocketUpdater::new(
+            "/nonexistent/nemu-updater.sock",
+        )),
+        capability_watches: Arc::default(),
+        pairing_runs: Arc::default(),
+        local_sessions: Arc::default(),
+    }
+}
+
+fn controller_identity() -> Arc<ControllerIdentity> {
+    Arc::new(ControllerIdentity {
+        controller_id: CONTROLLER_ID.to_string(),
+        name: "Test Home".to_string(),
+        keypair: ControllerKeypair::generate(),
+        encryption_key: ControllerEncryptionKey::generate(),
+    })
+}
+
+/// The Relay mailbox between one Access Client and Core: what the client
+/// posts, Core handles; what Core posts back, the client reads.
+struct Mailbox {
+    state: AppState,
+}
+
+impl Mailbox {
+    async fn deliver(&self, sealed: &SealedRequest) -> Option<SealedResponse> {
+        handle_sealed_request(&self.state, sealed).await
+    }
+}
+
+/// An Access Client paired with the Home, holding the Controller keys it
+/// pinned at pairing.
+struct Client {
+    id: String,
+    signing: SigningKey,
+    controller_signing_key: [u8; 32],
+    controller_encryption_key: [u8; 32],
+    counter: u64,
+    epoch: u64,
+}
+
+struct Sent {
+    sealed: SealedRequest,
+    keys: RequestKeys,
+}
+
+impl Client {
+    fn header(&mut self, request_id: &str) -> RequestHeader {
+        self.counter += 1;
+        RequestHeader {
+            controller_id: CONTROLLER_ID.into(),
+            identity_epoch: self.epoch,
+            access_client_id: self.id.clone(),
+            request_id: request_id.into(),
+            counter: self.counter,
+            expires_at: now_ms() + 20_000,
+        }
+    }
+
+    fn seal_with(&self, header: RequestHeader, action: &Value, signing: &SigningKey) -> Sent {
+        let (sealed, keys) = seal_request(
+            header,
+            action.to_string().as_bytes(),
+            &self.controller_encryption_key,
+            signing,
+        )
+        .unwrap();
+        Sent { sealed, keys }
+    }
+
+    fn seal(&mut self, request_id: &str, action: Value) -> Sent {
+        let header = self.header(request_id);
+        self.seal_with(header, &action, &self.signing.clone())
+    }
+
+    /// Opens Core's reply against the pinned Controller key.
+    fn open(&self, sent: &Sent, reply: Option<SealedResponse>) -> Value {
+        let reply = reply.expect("Core answers this request");
+        let plaintext = open_response(
+            &reply,
+            &sent.sealed.header,
+            &sent.keys,
+            &self.controller_signing_key,
+        )
+        .expect("the reply opens with the pinned Controller key");
+        serde_json::from_slice(&plaintext).unwrap()
+    }
+}
+
+fn now_ms() -> u64 {
+    u64::try_from(Utc::now().timestamp_millis()).unwrap()
+}
+
+struct Home {
+    mailbox: Mailbox,
+}
+
+impl Home {
+    async fn new() -> Self {
+        let state = app_state(empty_home().await, controller_identity());
+        Self {
+            mailbox: Mailbox { state },
+        }
+    }
+
+    fn state(&self) -> &AppState {
+        &self.mailbox.state
+    }
+
+    /// Restarts Core on the same database and keys.
+    fn restart(&self) -> Self {
+        let state = self.state();
+        Self {
+            mailbox: Mailbox {
+                state: app_state(state.db.clone(), state.identity.clone()),
+            },
+        }
+    }
+
+    async fn client(&self, user_id: &str, role: &str, seed: u8) -> Client {
+        let member = insert_member(
+            &self.state().db,
+            Some(user_id),
+            &format!("{user_id}@example.com"),
+            None,
+            role,
+            "active",
+            None,
+        )
+        .await
+        .unwrap();
+        let signing = SigningKey::from_bytes(&[seed; 32]);
+        let id = Uuid::new_v4();
+        insert_access_client(
+            &self.state().db,
+            AccessClientInput {
+                id,
+                member_id: member.id,
+                label: "phone".into(),
+                signing_key: signing.verifying_key().to_bytes(),
+                encryption_key: hpke::public_key(&[seed.wrapping_add(100); 32]),
+            },
+            None,
+        )
+        .await
+        .unwrap();
+        let identity = &self.state().identity;
+        Client {
+            id: id.to_string(),
+            signing,
+            controller_signing_key: identity.keypair.signing_key.verifying_key().to_bytes(),
+            controller_encryption_key: identity.encryption_key.public_key,
+            counter: 0,
+            epoch: INITIAL_IDENTITY_EPOCH,
+        }
+    }
+
+    async fn exchange(&self, client: &Client, sent: &Sent) -> Value {
+        client.open(sent, self.mailbox.deliver(&sent.sealed).await)
+    }
+
+    async fn count_rooms(&self, name: &str) -> i64 {
+        let name = name.to_string();
+        let conn = self.state().db.get().await.unwrap();
+        conn.interact(move |conn| {
+            rooms::table
+                .filter(rooms::name.eq(name))
+                .count()
+                .get_result::<i64>(conn)
+        })
+        .await
+        .unwrap()
+        .unwrap()
+    }
+}
+
+fn error_code(reply: &Value) -> &str {
+    reply["error"]["code"].as_str().unwrap_or("")
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_sealed_request_is_answered_as_its_access_client() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+
+    let sent = client.seal("r1", json!({ "type": "getSession" }));
+    // Convex sees the header and opaque bytes, never the action.
+    let on_the_wire = serde_json::to_string(&sent.sealed).unwrap();
+    assert!(!on_the_wire.contains("getSession"), "{on_the_wire}");
+
+    let reply = home.exchange(&client, &sent).await;
+    assert_eq!(reply, json!({ "type": "session", "role": "owner" }));
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn the_role_is_read_on_every_request() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_member", "member", 2).await;
+
+    let sent = client.seal("r1", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["role"], "member");
+
+    let conn = home.state().db.get().await.unwrap();
+    conn.interact(|conn| {
+        diesel::update(members::table.filter(members::user_id.eq("user_member")))
+            .set(members::role.eq("owner"))
+            .execute(conn)
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    let sent = client.seal("r2", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["role"], "owner");
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn envelopes_for_another_home_or_garbled_ones_are_dropped() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+
+    let mut header = client.header("r1");
+    header.controller_id = "nemu_00000000deadbeef".into();
+    let sent = client.seal_with(header, &json!({ "type": "getSession" }), &client.signing);
+    assert!(home.mailbox.deliver(&sent.sealed).await.is_none());
+
+    let mut sent = client.seal("r2", json!({ "type": "getSession" }));
+    sent.sealed.enc = "!!".into();
+    assert!(home.mailbox.deliver(&sent.sealed).await.is_none());
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_retired_epoch_is_answered_with_the_current_one_and_readdressed() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    // A restore moved the Home to epoch 2.
+    let conn = home.state().db.get().await.unwrap();
+    conn.interact(|conn| crate::identity::set_string(conn, IDENTITY_EPOCH_SETTING, "2"))
+        .await
+        .unwrap()
+        .unwrap();
+
+    let sent = client.seal("r1", json!({ "type": "getSession" }));
+    let reply = home.exchange(&client, &sent).await;
+    assert_eq!(error_code(&reply), "retired_epoch");
+    assert_eq!(reply["error"]["details"]["identityEpoch"], 2);
+
+    client.epoch = 2;
+    let sent = client.seal("r1", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["type"], "session");
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn an_envelope_past_its_expiry_and_skew_is_refused() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let action = json!({ "type": "createRoom", "name": "Late Room" });
+
+    let mut header = client.header("r1");
+    header.expires_at = now_ms() - CLOCK_SKEW - 1_000;
+    let sent = client.seal_with(header, &action, &client.signing);
+    let reply = home.exchange(&client, &sent).await;
+    assert_eq!(error_code(&reply), "request_expired");
+    assert_eq!(home.count_rooms("Late Room").await, 0);
+
+    // Inside the 60 seconds of skew it still runs.
+    let mut header = client.header("r2");
+    header.expires_at = now_ms() - CLOCK_SKEW + 5_000;
+    let sent = client.seal_with(header, &action, &client.signing);
+    assert_eq!(home.exchange(&client, &sent).await["type"], "room");
+    assert_eq!(home.count_rooms("Late Room").await, 1);
+}
+
+const CLOCK_SKEW: u64 = crate::relay_crypto::envelope::CLOCK_SKEW_MS;
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn unknown_and_revoked_access_clients_are_told_to_pair_again() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let mut stranger = home.client("user_other", "member", 3).await;
+    stranger.id = Uuid::new_v4().to_string();
+
+    let sent = stranger.seal("r1", json!({ "type": "getSession" }));
+    assert_eq!(
+        error_code(&home.exchange(&stranger, &sent).await),
+        "unknown_access_client"
+    );
+
+    let sent = client.seal("r2", json!({ "type": "revokeCurrent" }));
+    assert_eq!(home.exchange(&client, &sent).await["ok"], true);
+    let sent = client.seal("r3", json!({ "type": "getSession" }));
+    assert_eq!(
+        error_code(&home.exchange(&client, &sent).await),
+        "unknown_access_client"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_request_signed_by_another_key_is_refused() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let impostor = SigningKey::from_bytes(&[42u8; 32]);
+
+    let header = client.header("r1");
+    let sent = client.seal_with(
+        header,
+        &json!({ "type": "createRoom", "name": "Forged Room" }),
+        &impostor,
+    );
+    assert_eq!(
+        error_code(&home.exchange(&client, &sent).await),
+        "bad_signature"
+    );
+    assert_eq!(home.count_rooms("Forged Room").await, 0);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_replayed_counter_is_refused_even_after_a_restart() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let sent = client.seal("r1", json!({ "type": "createRoom", "name": "Once Room" }));
+    assert_eq!(home.exchange(&client, &sent).await["type"], "room");
+
+    // Someone who recorded the envelope sends it again, to a restarted Core.
+    let restarted = home.restart();
+    let reply = restarted.exchange(&client, &sent).await;
+    assert_eq!(error_code(&reply), "replayed");
+    assert_eq!(reply["error"]["details"]["highestCounter"], 1);
+    assert_eq!(home.count_rooms("Once Room").await, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_counter_behind_the_window_is_refused_with_the_highest_seen() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    client.counter = 99;
+    let sent = client.seal("r1", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["type"], "session");
+
+    // A client that lost its counter starts again from 1.
+    client.counter = 0;
+    let sent = client.seal("r2", json!({ "type": "getSession" }));
+    let reply = home.exchange(&client, &sent).await;
+    assert_eq!(error_code(&reply), "outside_window");
+    assert_eq!(reply["error"]["details"]["highestCounter"], 100);
+
+    // Counters inside the window but out of order still work, which is what
+    // several tabs sending at once look like.
+    client.counter = 90;
+    let sent = client.seal("r3", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["type"], "session");
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_retried_write_returns_its_stored_outcome_without_running_again() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let action = json!({ "type": "createRoom", "name": "Retry Room" });
+
+    let first = client.seal("write-1", action.clone());
+    let created = home.exchange(&client, &first).await;
+    assert_eq!(created["type"], "room");
+
+    // The reply was lost; the client seals the same request again under a
+    // new counter.
+    let retry = client.seal("write-1", action);
+    assert_eq!(home.restart().exchange(&client, &retry).await, created);
+    assert_eq!(home.count_rooms("Retry Room").await, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_reused_request_id_with_a_different_body_is_refused() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+
+    let first = client.seal("write-1", json!({ "type": "createRoom", "name": "First" }));
+    assert_eq!(home.exchange(&client, &first).await["type"], "room");
+    let other = client.seal("write-1", json!({ "type": "createRoom", "name": "Second" }));
+    assert_eq!(
+        error_code(&home.exchange(&client, &other).await),
+        "request_id_reused"
+    );
+    assert_eq!(home.count_rooms("Second").await, 0);
+
+    // Another Access Client's requestIds are its own.
+    let mut other_client = home.client("user_two", "owner", 4).await;
+    let theirs = other_client.seal("write-1", json!({ "type": "createRoom", "name": "Second" }));
+    assert_eq!(home.exchange(&other_client, &theirs).await["type"], "room");
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn a_retried_command_returns_the_ledger_outcome_once() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+    let action = json!({
+        "type": "command",
+        "deviceId": Uuid::new_v4().to_string(),
+        "payload": { "on": true },
+    });
+
+    let first = client.seal("cmd-1", action.clone());
+    let outcome = home.exchange(&client, &first).await;
+    assert_eq!(outcome["ok"], false);
+    assert_eq!(error_code(&outcome), "device_not_found");
+    let retry = client.seal("cmd-1", action);
+    assert_eq!(home.exchange(&client, &retry).await, outcome);
+
+    let ledger_id = store::command_ledger_id(client.id.parse().unwrap(), "cmd-1");
+    let conn = home.state().db.get().await.unwrap();
+    let rows = conn
+        .interact(move |conn| {
+            command_outcomes::table
+                .filter(command_outcomes::command_id.eq(ledger_id))
+                .count()
+                .get_result::<i64>(conn)
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(rows, 1);
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn reads_store_no_outcome() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+
+    let sent = client.seal("read-1", json!({ "type": "getSession" }));
+    assert_eq!(home.exchange(&client, &sent).await["role"], "owner");
+    // The same requestId may carry another read.
+    let sent = client.seal("read-1", json!({ "type": "listMembers" }));
+    assert_eq!(home.exchange(&client, &sent).await["type"], "members");
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn pairing_codes_and_wifi_credentials_stay_lan_only() {
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let mut client = home.client("user_owner", "owner", 1).await;
+
+    for action in [
+        json!({ "type": "commissionMatter", "code": "34970112332" }),
+        json!({ "type": "getMatterWifi" }),
+        json!({ "type": "saveMatterWifi", "wifiSsid": "home", "wifiPassword": "hunter2" }),
+    ] {
+        let sent = client.seal("lan-only", action);
+        let reply = home.exchange(&client, &sent).await;
+        assert_eq!(error_code(&reply), "unsupported_action", "{reply}");
+        for secret in ["34970112332", "hunter2"] {
+            assert!(!reply.to_string().contains(secret), "{reply}");
+        }
+    }
+}
