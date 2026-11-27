@@ -254,6 +254,11 @@ export const openLocalSessionRequestSchema = z.object({
     accessClientId: z.string(),
     nonce: z.string(),
     signature: z.string(),
+    /**
+     * The Access Client's fresh 32-byte nonce (base64url). A refusal that
+     * means "pair again" is signed over it (`relay-crypto` `LanRefusal`).
+     */
+    clientNonce: z.string(),
 })
 export type OpenLocalSessionRequest = z.infer<
     typeof openLocalSessionRequestSchema

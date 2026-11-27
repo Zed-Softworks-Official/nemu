@@ -65,9 +65,10 @@ import {
 } from '@nemu/protocol/relay-crypto'
 import type { ConvexReactClient } from 'convex/react'
 import type { FunctionReference } from 'convex/server'
-import type {
-    AccessClientKeyStore,
-    AccessClientRecord,
+import {
+    type AccessClientKeyStore,
+    type AccessClientRecord,
+    SignedRefusal,
 } from '../access-client-keys.ts'
 import { NOT_PAIRED_ERROR_CODE } from '../local-session.ts'
 import { createWebRelayCounter, type RelayCounter } from '../relay-counter.ts'
@@ -653,8 +654,10 @@ export class RelayTransport implements ControllerTransport {
 
     private throwIfCommandError(parsed: RelayReply, action: string): void {
         if (parsed.message.type === 'commandResult' && !parsed.message.ok) {
-            // Same error shape as LAN, so callers can act on the code.
-            throw new ApiError(
+            // Same error shape as LAN, so callers can act on the code. The
+            // reply opened under this request's keys and verified against
+            // the pinned Controller key, so its refusal is signed.
+            throw new SignedRefusal(
                 parsed.message.error?.code ?? 'relay_error',
                 parsed.message.error?.message ?? `Failed to ${action}`,
                 undefined,
@@ -700,7 +703,7 @@ export class RelayTransport implements ControllerTransport {
         )
         if (!projection) return record
         if (projection.state === 'ended') {
-            throw new ApiError(
+            throw new SignedRefusal(
                 MEMBERSHIP_ENDED_ERROR_CODE,
                 'This Account is no longer a Member of this Home.'
             )

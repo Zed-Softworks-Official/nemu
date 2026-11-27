@@ -15,7 +15,8 @@
     "dependencies": {
         "@nemu/protocol": "workspace:*",
         "axios": "catalog:",
-        "convex": "catalog:"
+        "convex": "catalog:",
+        "zod": "catalog:"
     },
     "peerDependencies": {
         "react": "catalog:"

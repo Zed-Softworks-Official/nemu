@@ -12,8 +12,38 @@ use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use super::wire::lv_cat;
 
 pub const LOCAL_SESSION_LABEL: &[u8] = b"nemu-local-session-v1";
-/// The Controller's nonces are this many bytes.
+/// The Controller's nonces, and the Access Client's refusal nonces, are this
+/// many bytes.
 pub const NONCE_LEN: usize = 32;
+pub const LAN_REFUSAL_LABEL: &[u8] = b"nemu-lan-refusal-v1";
+
+/// A Controller's refusal of a Local session that tells the Access Client to
+/// drop its keys and pair again. The Controller signs it over the client's
+/// own fresh nonce, so nobody on the network can fake one or replay an old
+/// one: an unsigned refusal never costs a client its keys.
+#[derive(Debug, Clone, Copy)]
+pub struct LanRefusal<'a> {
+    pub controller_id: &'a str,
+    pub access_client_id: &'a str,
+    /// `unknown_access_client` or `tombstoned_access_client`.
+    pub code: &'a str,
+    pub client_nonce: &'a [u8],
+}
+
+/// The bytes the Controller signs for a [`LanRefusal`].
+pub fn refusal_message(refusal: &LanRefusal<'_>) -> Vec<u8> {
+    lv_cat(&[
+        LAN_REFUSAL_LABEL,
+        refusal.controller_id.as_bytes(),
+        refusal.access_client_id.as_bytes(),
+        refusal.code.as_bytes(),
+        refusal.client_nonce,
+    ])
+}
+
+pub fn sign_refusal(key: &SigningKey, refusal: &LanRefusal<'_>) -> [u8; 64] {
+    key.sign(&refusal_message(refusal)).to_bytes()
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct LocalSessionChallenge<'a> {

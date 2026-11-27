@@ -31,7 +31,7 @@ import {
     type MembershipProjection,
     signMembershipProjection,
 } from './projection.ts'
-import { signLocalSessionChallenge } from './session.ts'
+import { signLanRefusal, signLocalSessionChallenge } from './session.ts'
 import { ed25519PublicKey, ed25519Signer } from './signing.ts'
 
 /** Deterministic 32 bytes for a vector input. */
@@ -464,6 +464,26 @@ export async function buildRelayCryptoVectors() {
         signer(accessClient),
         sessionChallenge
     )
+    const lanRefusal = {
+        controllerId: CONTROLLER_ID,
+        accessClientId: grant.accessClientId,
+        code: 'tombstoned_access_client',
+        clientNonce: seed('lan-refusal/client-nonce'),
+    }
+    const lanRefusalSignature = await signLanRefusal(
+        signer(controller),
+        lanRefusal
+    )
+    const lanRefusalJson = (
+        overrides: Partial<Record<keyof typeof lanRefusal, string>> = {}
+    ) => ({
+        controllerId: lanRefusal.controllerId,
+        accessClientId: lanRefusal.accessClientId,
+        code: lanRefusal.code,
+        clientNonce: hexEncode(lanRefusal.clientNonce),
+        signature: hexEncode(lanRefusalSignature),
+        ...overrides,
+    })
 
     const activeProjection: MembershipProjection = {
         controllerId: CONTROLLER_ID,
@@ -561,7 +581,34 @@ export async function buildRelayCryptoVectors() {
                 signature: hexEncode(sessionSignature),
             },
         ],
+        /** Signed by `keys.controller` over the Access Client's nonce. */
+        lanRefusals: [
+            { name: 'Local session refused: tombstoned', ...lanRefusalJson() },
+        ],
         rejections: {
+            /** Each must fail verification against `keys.controller`. */
+            lanRefusals: [
+                {
+                    name: 'over another client nonce',
+                    ...lanRefusalJson({
+                        clientNonce: hexEncode(seed('lan-refusal/other')),
+                    }),
+                },
+                {
+                    name: 'for another Access Client',
+                    ...lanRefusalJson({ accessClientId: 'ac_other' }),
+                },
+                {
+                    name: 'with another code',
+                    ...lanRefusalJson({ code: 'unknown_access_client' }),
+                },
+                {
+                    name: 'for another Controller',
+                    ...lanRefusalJson({
+                        controllerId: 'nemu_fedcba9876543210',
+                    }),
+                },
+            ],
             /** Each must fail verification against `keys.accessClient`. */
             localSessions: [
                 {

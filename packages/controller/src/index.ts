@@ -15,6 +15,7 @@ export {
     createSecretAccessClientKeyStore,
     PAIR_AGAIN_ERROR_CODES,
     pairAgainReason,
+    SignedRefusal,
     stageAccessClientKeys,
 } from './access-client-keys.ts'
 export type {

@@ -11,8 +11,16 @@ export type LocalSessionAuth = {
     invalidate(): void
 }
 
-/** The Controller ended or does not know the Local session. */
-const LOCAL_SESSION_INVALID = 'local_session_invalid'
+/**
+ * The Controller ended or does not know the Local session, or refused its
+ * Access Client on a request. Opening a new session either works or brings
+ * the refusal signed (`LocalSession`), so it is tried once.
+ */
+const RENEW_SESSION_ON: ReadonlySet<string> = new Set([
+    'local_session_invalid',
+    'unknown_access_client',
+    'tombstoned_access_client',
+])
 
 type RetriedConfig = InternalAxiosRequestConfig & { localSessionRetried?: true }
 
@@ -55,7 +63,7 @@ export function createControllerHttp(
                 localSession &&
                 config &&
                 !config.localSessionRetried &&
-                error.code === LOCAL_SESSION_INVALID
+                RENEW_SESSION_ON.has(error.code)
             ) {
                 localSession.invalidate()
                 config.localSessionRetried = true

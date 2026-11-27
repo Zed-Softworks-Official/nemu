@@ -94,11 +94,16 @@ export {
     type ReplayWindow,
 } from './replay.ts'
 export {
+    LAN_REFUSAL_LABEL,
+    type LanRefusal,
     LOCAL_SESSION_LABEL,
     LOCAL_SESSION_NONCE_LENGTH,
     type LocalSessionChallenge,
+    lanRefusalMessage,
     localSessionMessage,
+    signLanRefusal,
     signLocalSessionChallenge,
+    verifyLanRefusal,
     verifyLocalSessionChallenge,
 } from './session.ts'
 export {

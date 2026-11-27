@@ -12,6 +12,7 @@ import {
     ed25519PublicKey,
     ed25519Signer,
     issueGrant,
+    signLanRefusal,
     verifyLocalSessionChallenge,
     x25519PublicKey,
 } from '@nemu/protocol/relay-crypto'
@@ -38,6 +39,13 @@ export type FakeLanControllerOptions = {
     /** Answer pairing with these keys instead of the ones it signs with. */
     advertisedKeys?: { signingKey: Uint8Array; encryptionKey: Uint8Array }
 }
+
+/**
+ * How a Local session's pair-again refusal is signed: as Core does (over
+ * the client's nonce), not at all, by another key, or with the signature
+ * of the first refusal it sent (a replay).
+ */
+export type FakeRefusalSigning = 'signed' | 'unsigned' | 'impostor' | 'replayed'
 
 function bytes(value: unknown): Uint8Array {
     const decoded = typeof value === 'string' ? b64urlDecode(value) : null
@@ -74,6 +82,8 @@ export class FakeLanController {
     private readonly clients = new Map<string, PairedClient>()
     private readonly challenges = new Set<string>()
     private readonly sessions = new Map<string, string>()
+    refusals: FakeRefusalSigning = 'signed'
+    private firstRefusalSignature: string | null = null
 
     constructor(options: FakeLanControllerOptions = {}) {
         this.controllerId = options.controllerId ?? 'nemu_00000000feedbeef'
@@ -132,6 +142,41 @@ export class FakeLanController {
             listener(req.url ?? '')
             socket.destroy()
         })
+    }
+
+    private async refusal(
+        code: string,
+        accessClientId: string,
+        clientNonce: unknown
+    ): Promise<Reply> {
+        const reply = error(401, code)
+        if (this.refusals === 'unsigned') return reply
+        const signature = b64urlEncode(
+            await signLanRefusal(
+                ed25519Signer(
+                    this.refusals === 'impostor'
+                        ? new Uint8Array(32).fill(9)
+                        : this.signingSecret
+                ),
+                {
+                    controllerId: this.controllerId,
+                    accessClientId,
+                    code,
+                    clientNonce: bytes(clientNonce),
+                }
+            )
+        )
+        this.firstRefusalSignature ??= signature
+        const refusalSignature =
+            this.refusals === 'replayed'
+                ? this.firstRefusalSignature
+                : signature
+        return {
+            status: 401,
+            body: {
+                error: { code, message: code, details: { refusalSignature } },
+            },
+        }
     }
 
     /** Revokes an Access Client and ends its Local sessions. */
@@ -246,7 +291,13 @@ export class FakeLanController {
             }
             const accessClientId = String(body.accessClientId)
             const client = this.clients.get(accessClientId)
-            if (!client) return error(401, 'unknown_access_client')
+            if (!client) {
+                return await this.refusal(
+                    'unknown_access_client',
+                    accessClientId,
+                    body.clientNonce
+                )
+            }
             const valid = verifyLocalSessionChallenge(
                 client.signingKey,
                 {

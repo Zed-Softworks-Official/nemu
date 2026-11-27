@@ -350,7 +350,51 @@
             "signature": "a980a8717453e56f7f444d12d239944f3a7eeb2cb5d009cdcd58f2ea615393f5a46fc7c5cee37d45f12b96f9f14625d694d67f13221f4fa24f9e82259777e90e"
         }
     ],
+    "lanRefusals": [
+        {
+            "name": "Local session refused: tombstoned",
+            "controllerId": "nemu_0123456789abcdef",
+            "accessClientId": "ac_7f3a",
+            "code": "tombstoned_access_client",
+            "clientNonce": "fee99a47a78f9aed91bc127dc9ed30ab7efcebd676f26cc1c3c14f60c39ab009",
+            "signature": "6c9153544b86a85cc8c81cc788d41992919a31073be07142a004e44d11567f56e1b40f44e9c81a69d30eb1c0decdc35934b2be023fe69fb90296365df5b7c206"
+        }
+    ],
     "rejections": {
+        "lanRefusals": [
+            {
+                "name": "over another client nonce",
+                "controllerId": "nemu_0123456789abcdef",
+                "accessClientId": "ac_7f3a",
+                "code": "tombstoned_access_client",
+                "clientNonce": "3d7c0988370429ac00421ca3ec66028552312b1f1c8c6c7448a8c14bac83aedb",
+                "signature": "6c9153544b86a85cc8c81cc788d41992919a31073be07142a004e44d11567f56e1b40f44e9c81a69d30eb1c0decdc35934b2be023fe69fb90296365df5b7c206"
+            },
+            {
+                "name": "for another Access Client",
+                "controllerId": "nemu_0123456789abcdef",
+                "accessClientId": "ac_other",
+                "code": "tombstoned_access_client",
+                "clientNonce": "fee99a47a78f9aed91bc127dc9ed30ab7efcebd676f26cc1c3c14f60c39ab009",
+                "signature": "6c9153544b86a85cc8c81cc788d41992919a31073be07142a004e44d11567f56e1b40f44e9c81a69d30eb1c0decdc35934b2be023fe69fb90296365df5b7c206"
+            },
+            {
+                "name": "with another code",
+                "controllerId": "nemu_0123456789abcdef",
+                "accessClientId": "ac_7f3a",
+                "code": "unknown_access_client",
+                "clientNonce": "fee99a47a78f9aed91bc127dc9ed30ab7efcebd676f26cc1c3c14f60c39ab009",
+                "signature": "6c9153544b86a85cc8c81cc788d41992919a31073be07142a004e44d11567f56e1b40f44e9c81a69d30eb1c0decdc35934b2be023fe69fb90296365df5b7c206"
+            },
+            {
+                "name": "for another Controller",
+                "controllerId": "nemu_fedcba9876543210",
+                "accessClientId": "ac_7f3a",
+                "code": "tombstoned_access_client",
+                "clientNonce": "fee99a47a78f9aed91bc127dc9ed30ab7efcebd676f26cc1c3c14f60c39ab009",
+                "signature": "6c9153544b86a85cc8c81cc788d41992919a31073be07142a004e44d11567f56e1b40f44e9c81a69d30eb1c0decdc35934b2be023fe69fb90296365df5b7c206"
+            }
+        ],
         "localSessions": [
             {
                 "name": "for another Access Client",

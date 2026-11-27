@@ -92,6 +92,26 @@ export const PAIR_AGAIN_ERROR_CODES = [
 export type PairAgainReason = (typeof PAIR_AGAIN_ERROR_CODES)[number]
 
 /**
+ * A refusal this client verified came from the Controller it paired with:
+ * a Relay reply that opened under this request's keys and the pinned
+ * Controller key, a signed Local session refusal over this client's nonce,
+ * or a verified Membership routing projection. Only one of these may make
+ * the client drop its keys; the same code in anything unverified (a plain
+ * HTTP error, which anyone on the network can send) changes nothing.
+ */
+export class SignedRefusal extends ApiError {
+    constructor(
+        code: string,
+        message: string,
+        status?: number,
+        details?: unknown
+    ) {
+        super(code, message, status, details)
+        this.name = 'SignedRefusal'
+    }
+}
+
+/**
  * True when the Controller refused this client's keys, so they are worth
  * nothing now. Holding no keys, or a refused bearer token, says nothing
  * about the keys.
@@ -103,10 +123,16 @@ export function keysRefused(reason: PairAgainReason): boolean {
     )
 }
 
-/** The pair-again reason an error carries, or null for any other error. */
+/**
+ * The pair-again reason an error carries, or null for any other error. A
+ * reason that drops keys counts only from a `SignedRefusal`.
+ */
 export function pairAgainReason(error: unknown): PairAgainReason | null {
     if (!(error instanceof ApiError)) return null
-    return PAIR_AGAIN_ERROR_CODES.find((code) => code === error.code) ?? null
+    const reason = PAIR_AGAIN_ERROR_CODES.find((code) => code === error.code)
+    if (!reason) return null
+    if (keysRefused(reason) && !(error instanceof SignedRefusal)) return null
+    return reason
 }
 
 export function randomSecret(): Uint8Array {

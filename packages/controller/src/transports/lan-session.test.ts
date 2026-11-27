@@ -3,8 +3,15 @@
 
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import { createMemoryAccessClientKeyStore } from '../access-client-keys.ts'
-import { FakeLanController } from '../fake-lan-controller.ts'
+import {
+    createMemoryAccessClientKeyStore,
+    pairAgainReason,
+} from '../access-client-keys.ts'
+import { ControllerConnection } from '../connection.ts'
+import {
+    FakeLanController,
+    type FakeRefusalSigning,
+} from '../fake-lan-controller.ts'
 import { LocalSession } from '../local-session.ts'
 import { pairWithController } from '../pairing.ts'
 import { LanTransport } from './lan.ts'
@@ -105,14 +112,119 @@ describe('LanTransport with a Local session', () => {
         ])
     })
 
-    it('tells a revoked Access Client to pair again', async () => {
+    it('tells a revoked Access Client to pair again, signed over its nonce', async () => {
         const { lan, transport, enrollment } = await pairedHome()
         await transport.getDevices()
         lan.revoke(enrollment.accessClientId)
 
-        await assert.rejects(transport.getDevices(), {
-            code: 'unknown_access_client',
+        await assert.rejects(transport.getDevices(), (error: unknown) => {
+            assert.equal(pairAgainReason(error), 'unknown_access_client')
+            return true
         })
+        const opened = lan.requests.filter(
+            (r) => r.path === '/api/local-sessions'
+        )
+        const nonces = opened.map((r) => String(r.body?.clientNonce))
+        assert.equal(
+            new Set(nonces).size,
+            nonces.length,
+            'a fresh nonce each time'
+        )
+    })
+
+    for (const refusals of [
+        'unsigned',
+        'impostor',
+        'replayed',
+    ] satisfies FakeRefusalSigning[]) {
+        it(`keeps its keys when a LAN refusal is ${refusals}`, async () => {
+            const { lan, transport, enrollment, keyStore } = await pairedHome()
+            await transport.getDevices()
+            if (refusals === 'replayed') {
+                // A genuine signed refusal, captured for another Access Client.
+                await new LocalSession({
+                    baseUrl: lan.baseUrl,
+                    controllerId: lan.controllerId,
+                    keyStore: {
+                        ...keyStore,
+                        load: async (id) => {
+                            const record = await keyStore.load(id)
+                            return (
+                                record && {
+                                    ...record,
+                                    enrollment: {
+                                        ...record.enrollment,
+                                        accessClientId: 'someone-else',
+                                    },
+                                }
+                            )
+                        },
+                    },
+                })
+                    .token()
+                    .catch(() => {})
+            }
+            lan.refusals = refusals
+            lan.revoke(enrollment.accessClientId)
+
+            const connection = new ControllerConnection({
+                reprobeIntervalMs: 60_000,
+                controllerId: lan.controllerId,
+                accessClientKeyStore: keyStore,
+                connectors: {
+                    discover: async () => ({
+                        baseUrl: lan.baseUrl,
+                        health: { status: 'ok' },
+                    }),
+                    identify: async () => ({
+                        controllerId: lan.controllerId,
+                        name: 'Lake House',
+                    }),
+                },
+            })
+            try {
+                await connection.start()
+                await assert.rejects(connection.getDevices(), {
+                    code: 'unknown_access_client',
+                })
+                assert.equal(connection.getPairingLoss(), null)
+                assert.ok(await keyStore.load(lan.controllerId), 'keys kept')
+            } finally {
+                connection.stop()
+            }
+        })
+    }
+
+    it('drops its keys on a refusal the pinned key signed over its nonce', async () => {
+        const { lan, enrollment, keyStore } = await pairedHome()
+        lan.revoke(enrollment.accessClientId)
+        const connection = new ControllerConnection({
+            reprobeIntervalMs: 60_000,
+            controllerId: lan.controllerId,
+            accessClientKeyStore: keyStore,
+            connectors: {
+                discover: async () => ({
+                    baseUrl: lan.baseUrl,
+                    health: { status: 'ok' },
+                }),
+                identify: async () => ({
+                    controllerId: lan.controllerId,
+                    name: 'Lake House',
+                }),
+            },
+        })
+        const losses: Array<string | null> = []
+        connection.subscribePairingLoss((loss) =>
+            losses.push(loss?.reason ?? null)
+        )
+        try {
+            await connection.start()
+            await connection.getDevices().catch(() => {})
+            assert.equal(losses.find(Boolean), 'unknown_access_client')
+            assert.equal(await keyStore.load(lan.controllerId), null)
+        } finally {
+            connection.stop()
+        }
     })
 
     it('reports an Access Client that has no keys for this Home', async () => {

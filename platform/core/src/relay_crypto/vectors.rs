@@ -549,6 +549,41 @@ fn local_session_challenges_sign_verify_and_reject() {
 }
 
 #[test]
+fn lan_refusals_sign_and_reject() {
+    let vectors = vectors();
+    let keys = keys(&vectors);
+    let verifies = |v: &Value| {
+        let nonce = h(&v["clientNonce"]);
+        let refusal = session::LanRefusal {
+            controller_id: s(&v["controllerId"]),
+            access_client_id: s(&v["accessClientId"]),
+            code: s(&v["code"]),
+            client_nonce: &nonce,
+        };
+        let signature: [u8; 64] = h(&v["signature"]).try_into().unwrap();
+        let valid = ed25519_dalek::VerifyingKey::from_bytes(&keys.controller.signing_public)
+            .unwrap()
+            .verify_strict(
+                &session::refusal_message(&refusal),
+                &ed25519_dalek::Signature::from_bytes(&signature),
+            )
+            .is_ok();
+        (
+            hex::encode(session::sign_refusal(&keys.controller.signing, &refusal)),
+            valid,
+        )
+    };
+    for v in array(&vectors["lanRefusals"]) {
+        let (signature, valid) = verifies(v);
+        assert_eq!(signature, s(&v["signature"]), "{}", s(&v["name"]));
+        assert!(valid, "{}", s(&v["name"]));
+    }
+    for r in array(&vectors["rejections"]["lanRefusals"]) {
+        assert!(!verifies(r).1, "{}", s(&r["name"]));
+    }
+}
+
+#[test]
 fn replay_window_steps() {
     for v in array(&vectors()["replayWindow"]) {
         let mut window = ReplayWindow::default();

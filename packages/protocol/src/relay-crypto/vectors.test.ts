@@ -52,7 +52,9 @@ import {
     type ReplayWindow,
 } from './replay.ts'
 import {
+    signLanRefusal,
     signLocalSessionChallenge,
+    verifyLanRefusal,
     verifyLocalSessionChallenge,
 } from './session.ts'
 import { ed25519Signer } from './signing.ts'
@@ -536,6 +538,50 @@ describe('Membership routing projections', () => {
         assert.ok(supersedesProjection(at(2, 1), at(1, 90)))
         assert.ok(!supersedesProjection(at(1, 90), at(2, 1)))
     })
+})
+
+describe('LAN pair-again refusals', () => {
+    const refusal = (v: {
+        controllerId: string
+        accessClientId: string
+        code: string
+        clientNonce: string
+    }) => ({
+        controllerId: v.controllerId,
+        accessClientId: v.accessClientId,
+        code: v.code,
+        clientNonce: h(v.clientNonce),
+    })
+
+    for (const v of fixture.lanRefusals) {
+        it(`signs and verifies: ${v.name}`, async () => {
+            const signature = await signLanRefusal(
+                ed25519Signer(h(controller.signingSecret)),
+                refusal(v)
+            )
+            assert.equal(hexEncode(signature), v.signature)
+            assert.ok(
+                verifyLanRefusal(
+                    h(controller.signingPublic),
+                    refusal(v),
+                    h(v.signature)
+                )
+            )
+        })
+    }
+
+    for (const r of fixture.rejections.lanRefusals) {
+        it(`rejects a refusal ${r.name}`, () => {
+            assert.equal(
+                verifyLanRefusal(
+                    h(controller.signingPublic),
+                    refusal(r),
+                    h(r.signature)
+                ),
+                false
+            )
+        })
+    }
 })
 
 describe('Local session challenges', () => {
