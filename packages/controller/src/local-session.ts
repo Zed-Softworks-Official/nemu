@@ -3,6 +3,8 @@ import {
     localSessionChallengeResponseSchema,
     type OpenLocalSessionRequest,
     openLocalSessionResponseSchema,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
 } from '@nemu/protocol'
 import {
     b64urlDecode,
@@ -22,8 +24,8 @@ import { createControllerHttp, toApiError } from './http.ts'
 
 /** Local session refusals the Controller signs over the client's nonce. */
 const SIGNED_REFUSAL_CODES: ReadonlySet<string> = new Set([
-    'unknown_access_client',
-    'tombstoned_access_client',
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
 ])
 
 const refusalDetailsSchema = z.object({ refusalSignature: z.string() })

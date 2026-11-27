@@ -15,6 +15,7 @@ import {
     b64urlEncode,
     CpaceError,
     CpaceInitiator,
+    equalBytes,
     GrantError,
     verifyGrant,
 } from '@nemu/protocol/relay-crypto'
@@ -78,10 +79,6 @@ function decode(text: string): Uint8Array {
         throw new ApiError('protocol_mismatch', 'Malformed pairing message')
     }
     return bytes
-}
-
-function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
-    return a.length === b.length && a.every((byte, i) => byte === b[i])
 }
 
 /**

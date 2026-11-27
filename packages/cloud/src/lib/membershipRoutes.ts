@@ -2,6 +2,7 @@ import {
     type MembershipProjection,
     ProjectionError,
     type SignedMembershipProjection,
+    signedMembershipProjectionSchema,
     supersedesProjection,
     verifyMembershipProjection,
 } from '@nemu/protocol/relay-crypto'
@@ -101,17 +102,9 @@ export async function publishProjection(
     ctx: MutationCtx,
     signed: unknown
 ): Promise<PublishOutcome> {
-    const controllerId =
-        signed !== null &&
-        typeof signed === 'object' &&
-        'projection' in signed &&
-        signed.projection !== null &&
-        typeof signed.projection === 'object' &&
-        'controllerId' in signed.projection &&
-        typeof signed.projection.controllerId === 'string'
-            ? signed.projection.controllerId
-            : null
-    if (controllerId === null) throw projectionError('malformed')
+    const parsed = signedMembershipProjectionSchema.safeParse(signed)
+    if (!parsed.success) throw projectionError('malformed')
+    const { controllerId } = parsed.data.projection
     const controller = await controllerFor(ctx, controllerId)
     if (!controller) throw projectionError('unknown_controller')
     const key = decodeBase64(controller.publicKey)
@@ -120,7 +113,7 @@ export async function publishProjection(
 
     let projection: MembershipProjection
     try {
-        projection = verifyMembershipProjection(signed, controllerId, key)
+        projection = verifyMembershipProjection(parsed.data, controllerId, key)
     } catch (error) {
         if (error instanceof ProjectionError) throw projectionError(error.code)
         throw error
@@ -138,7 +131,7 @@ export async function publishProjection(
 
     const row = {
         ...projection,
-        signature: (signed as SignedMembershipProjection).signature,
+        signature: parsed.data.signature,
     }
     if (current) {
         await ctx.db.replace(current._id, row)

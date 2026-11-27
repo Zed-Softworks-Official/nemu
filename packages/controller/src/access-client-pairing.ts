@@ -1,4 +1,8 @@
-import { ApiError, type IdentifyResponse } from '@nemu/protocol'
+import {
+    ApiError,
+    type IdentifyResponse,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+} from '@nemu/protocol'
 import {
     type AccessClientKeyStore,
     stageAccessClientKeys,
@@ -106,7 +110,8 @@ function lanFailure(err: unknown): AccessClientPairingState {
     if (err instanceof ApiError) {
         if (err.code === 'invalid_code') return failure('invalid_code')
         if (err.code === WRONG_HOME_ERROR_CODE) return failure('wrong_home')
-        if (err.code === 'tombstoned_access_client') return failure('revoked')
+        if (err.code === TOMBSTONED_ACCESS_CLIENT_ERROR_CODE)
+            return failure('revoked')
         if (err.code === INVALID_GRANT_ERROR_CODE) {
             return failure(
                 'unknown',

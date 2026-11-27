@@ -1,4 +1,9 @@
-import { ApiError, apiErrorBodySchema } from '@nemu/protocol'
+import {
+    ApiError,
+    apiErrorBodySchema,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+} from '@nemu/protocol'
 import axios, {
     type AxiosInstance,
     type InternalAxiosRequestConfig,
@@ -18,8 +23,8 @@ export type LocalSessionAuth = {
  */
 const RENEW_SESSION_ON: ReadonlySet<string> = new Set([
     'local_session_invalid',
-    'unknown_access_client',
-    'tombstoned_access_client',
+    UNKNOWN_ACCESS_CLIENT_ERROR_CODE,
+    TOMBSTONED_ACCESS_CLIENT_ERROR_CODE,
 ])
 
 type RetriedConfig = InternalAxiosRequestConfig & { localSessionRetried?: true }

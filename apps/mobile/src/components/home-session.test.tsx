@@ -1,4 +1,8 @@
-import { type AccessClientKeyStore, useController } from '@nemu/controller'
+import {
+    type AccessClientKeyStore,
+    PAIR_AGAIN_ERROR_CODES,
+    useController,
+} from '@nemu/controller'
 import {
     createMemoryAccessClientKeyStore,
     FakeController,
@@ -263,15 +267,21 @@ describe('Returning to a paired Home', () => {
         await render(tree([LAKE]))
 
         await screen.findByRole('button', { name: 'Pair this phone' })
-        expect(
-            screen.getByText(/no longer has access to Lake House/)
-        ).toBeTruthy()
+        expect(screen.getByText(/was removed from Lake House/)).toBeTruthy()
         expect(screen.getByText(/Pair it again at home/)).toBeTruthy()
         expect(await keyStore.load('lake')).toBeNull()
     })
 })
 
 describe('pairAgainNotice', () => {
+    it('gives every reason to pair again its own notice', () => {
+        const notices = PAIR_AGAIN_ERROR_CODES.map((reason) =>
+            pairAgainNotice(reason, 'Lake House')
+        )
+        expect(new Set(notices).size).toBe(PAIR_AGAIN_ERROR_CODES.length)
+        for (const notice of notices) expect(notice).toMatch(/Lake House/)
+    })
+
     it('tells a phone that held a retired bearer token to pair again at home', () => {
         expect(pairAgainNotice('bearer_token_retired', 'Lake House')).toBe(
             'Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using Lake House.'

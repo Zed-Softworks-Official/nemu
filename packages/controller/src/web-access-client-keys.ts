@@ -1,8 +1,10 @@
 import { ApiError } from '@nemu/protocol'
 import { b64urlEncode, type Ed25519Signer } from '@nemu/protocol/relay-crypto'
+import { z } from 'zod'
 import {
     type AccessClientKeyStore,
     type AccessClientKeys,
+    bytes32Schema,
     parseEnrollment,
     serializeEnrollment,
 } from './access-client-keys.ts'
@@ -34,16 +36,30 @@ export type WebAccessClientKeyStoreOptions = {
     storage?: PersistentStorage | null
 }
 
-type StoredWebRecord = {
-    version: 1
+const privateKeySchema = z.custom<CryptoKey>(
+    (value) =>
+        typeof CryptoKey !== 'undefined' &&
+        value instanceof CryptoKey &&
+        value.type === 'private'
+)
+
+const storedWebRecordSchema = z.object({
+    version: z.literal(1),
     /** Always `non-extractable`. Older builds also wrote `stored-bytes`. */
-    protection: 'non-extractable'
-    signingPrivateKey: CryptoKey
-    encryptionPrivateKey: CryptoKey
-    signingKey: Uint8Array
-    encryptionKey: Uint8Array
-    enrollment: ReturnType<typeof serializeEnrollment>
-}
+    protection: z.literal('non-extractable'),
+    signingPrivateKey: privateKeySchema,
+    encryptionPrivateKey: privateKeySchema,
+    signingKey: bytes32Schema,
+    encryptionKey: bytes32Schema,
+    /** A serialized enrollment; `parseEnrollment` reads it. */
+    enrollment: z.unknown(),
+})
+type StoredWebRecord = z.infer<typeof storedWebRecordSchema>
+
+/** A record from before `stored-bytes` was removed: keys page script could read. */
+const legacyStoredBytesSchema = z.object({
+    protection: z.literal('stored-bytes'),
+})
 
 type GeneratedKeys = {
     signingPrivateKey: CryptoKey
@@ -143,23 +159,11 @@ async function generateWebKeys(subtle: SubtleCrypto): Promise<GeneratedKeys> {
     }
 }
 
-function isPrivateKey(value: unknown): value is CryptoKey {
-    return (
-        typeof CryptoKey !== 'undefined' &&
-        value instanceof CryptoKey &&
-        value.type === 'private'
-    )
-}
-
 function unsupportedBrowser(): ApiError {
     return new ApiError(
         UNSUPPORTED_BROWSER_ERROR_CODE,
         'This browser has no Web Crypto Ed25519 or X25519, so it cannot pair.'
     )
-}
-
-function isKey32(value: unknown): value is Uint8Array {
-    return value instanceof Uint8Array && value.length === 32
 }
 
 /**
@@ -214,24 +218,13 @@ export function createWebAccessClientKeyStore(
         controllerId: string
     ): Promise<StoredWebRecord | null> => {
         const value = await db().get(controllerId)
-        if (typeof value !== 'object' || value === null) return null
-        const v = value as Partial<Record<keyof StoredWebRecord, unknown>>
-        if (v.protection === 'stored-bytes') {
+        if (legacyStoredBytesSchema.safeParse(value).success) {
             // Keys page script could read: never use them, pair again.
             await db().delete(controllerId)
             return null
         }
-        if (
-            v.version !== 1 ||
-            v.protection !== 'non-extractable' ||
-            !isPrivateKey(v.signingPrivateKey) ||
-            !isPrivateKey(v.encryptionPrivateKey) ||
-            !isKey32(v.signingKey) ||
-            !isKey32(v.encryptionKey)
-        ) {
-            return null
-        }
-        return v as StoredWebRecord
+        const record = storedWebRecordSchema.safeParse(value)
+        return record.success ? record.data : null
     }
 
     return {

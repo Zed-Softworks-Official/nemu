@@ -294,17 +294,28 @@ export function HomeSessionProvider({
 }
 
 /** What the pairing screen says after this phone lost access to a Home. */
+/** What each reason to pair again tells the person, for every reason. */
+const PAIR_AGAIN_NOTICES: Record<
+    PairAgainReason,
+    (homeName: string) => string
+> = {
+    not_paired: (homeName) =>
+        `This phone’s keys for ${homeName} are gone. Pair it again at home.`,
+    bearer_token_retired: (homeName) =>
+        `Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using ${homeName}.`,
+    unknown_access_client: (homeName) =>
+        `This phone no longer has access to ${homeName}. It may have been removed. Pair it again at home.`,
+    tombstoned_access_client: (homeName) =>
+        `This phone was removed from ${homeName}. Pair it again at home.`,
+    membership_ended: (homeName) =>
+        `You are no longer a Member of ${homeName}. Ask an Owner for a new Invitation.`,
+}
+
 export function pairAgainNotice(
     reason: PairAgainReason,
     homeName: string
 ): string {
-    if (reason === 'not_paired') {
-        return `This phone’s keys for ${homeName} are gone. Pair it again at home.`
-    }
-    if (reason === 'bearer_token_retired') {
-        return `Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using ${homeName}.`
-    }
-    return `This phone no longer has access to ${homeName}. It may have been removed. Pair it again at home.`
+    return PAIR_AGAIN_NOTICES[reason](homeName)
 }
 
 /**

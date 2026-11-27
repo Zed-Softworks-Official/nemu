@@ -9,6 +9,7 @@
 export {
     b64urlDecode,
     b64urlEncode,
+    equalBytes,
     hexDecode,
     hexEncode,
     utf8Decode,
