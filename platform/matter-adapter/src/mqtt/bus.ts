@@ -5,14 +5,18 @@
  * `@nemu/protocol` before publishing it.
  */
 import {
+    type BridgeCapabilityManifest,
     type BridgeDevice,
     type BridgeEvent,
+    type BridgeObservationReport,
     type BridgeResponse,
     bridgeAvailabilitySchema,
+    bridgeCapabilityManifestSchema,
     bridgeCommissioningSchema,
     bridgeDeviceStateSchema,
     bridgeDevicesSchema,
     bridgeEventSchema,
+    bridgeObservationReportSchema,
     bridgeResponseSchema,
     bridgeStateSchema,
     type CommissioningProgress,
@@ -83,6 +87,43 @@ export class MqttBus {
         )
     }
 
+    capabilities(
+        id: string,
+        manifest: BridgeCapabilityManifest
+    ): Promise<boolean> {
+        return this.#publish(
+            `${id}/capabilities`,
+            bridgeCapabilityManifestSchema,
+            manifest,
+            true
+        )
+    }
+
+    observations(
+        id: string,
+        report: BridgeObservationReport
+    ): Promise<boolean> {
+        return this.#publish(
+            `${id}/observations`,
+            bridgeObservationReportSchema,
+            report,
+            true
+        )
+    }
+
+    /** Clears a retained topic with an empty payload. */
+    async clearRetained(rest: string): Promise<boolean> {
+        try {
+            await this.transport.publish(`${this.base}/${rest}`, '', {
+                retain: true,
+            })
+            return true
+        } catch (error) {
+            this.log.warn(`clear ${rest} failed: ${String(error)}`)
+            return false
+        }
+    }
+
     respond(
         endpoint: string,
         transaction: string | undefined,
@@ -132,10 +173,10 @@ export class MqttBus {
         }
     }
 
-    async #publish<T>(
+    async #publish<S extends z.ZodType>(
         rest: string,
-        schema: z.ZodType<T>,
-        payload: T,
+        schema: S,
+        payload: z.input<S>,
         retain: boolean
     ): Promise<boolean> {
         const checked = schema.safeParse(payload)

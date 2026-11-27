@@ -7,6 +7,15 @@
  * so each change needs matching Core work.
  */
 import { z } from 'zod'
+import {
+    canonicalUnitSchema,
+    capabilityConstraintRevisionSchema,
+    capabilityDirectionalitySchema,
+    capabilityKindSchema,
+    capabilityPhysicalScopeSchema,
+    numericCapabilityValueSchema,
+    observationEnvelopeSchemaVersionSchema,
+} from './capability.ts'
 import { commissioningProgressSchema } from './commissioning-progress.ts'
 import { deviceStateSchema } from './device.ts'
 
@@ -106,3 +115,75 @@ export type BridgeEvent = z.infer<typeof bridgeEventSchema>
  * Core that ignores this topic still works.
  */
 export const bridgeCommissioningSchema = commissioningProgressSchema
+/** The Device a Capability manifest or observation belongs to. */
+export const bridgeCapabilityDeviceSchema = z.strictObject({
+    protocol: z.string().min(1),
+    externalId: z.string().min(1),
+})
+
+/**
+ * What a Capability is before Core assigns it an ID: its Device, its
+ * Component path, its kind and where it measures.
+ */
+export const bridgeCapabilityIdentitySchema = z.strictObject({
+    device: bridgeCapabilityDeviceSchema,
+    componentPath: z.array(z.string()),
+    kind: capabilityKindSchema,
+    physicalScope: capabilityPhysicalScopeSchema,
+})
+export type BridgeCapabilityIdentity = z.input<
+    typeof bridgeCapabilityIdentitySchema
+>
+
+/**
+ * Retained `{id}/capabilities`: the Capability manifest Core registers
+ * (`platform/core/src/capabilities/adapter.rs`). An empty
+ * `supportedObservationEnvelopeVersions` keeps the Device's readings out of
+ * History.
+ */
+export const bridgeCapabilityManifestSchema = z.strictObject({
+    schemaVersion: z.literal(1),
+    supportedObservationEnvelopeVersions: z.array(
+        observationEnvelopeSchemaVersionSchema
+    ),
+    device: bridgeCapabilityDeviceSchema,
+    capabilities: z.array(
+        z.strictObject({
+            identity: bridgeCapabilityIdentitySchema,
+            unit: canonicalUnitSchema,
+            directionality: capabilityDirectionalitySchema,
+            constraintRevisions: z
+                .array(capabilityConstraintRevisionSchema)
+                .min(1),
+        })
+    ),
+})
+export type BridgeCapabilityManifest = z.input<
+    typeof bridgeCapabilityManifestSchema
+>
+
+/** Retained `{id}/observations`: one envelope of readings. */
+export const bridgeObservationReportSchema = z.strictObject({
+    schemaVersion: observationEnvelopeSchemaVersionSchema.optional(),
+    observationId: z.string().min(1).optional(),
+    observedAt: z.iso.datetime({ offset: true }).optional(),
+    timeTrust: z.enum(['trustworthy', 'untrustworthy']),
+    observations: z.array(
+        z.strictObject({
+            identity: bridgeCapabilityIdentitySchema,
+            capabilityId: z.string().min(1).optional(),
+            /** Set only when the adapter knows a cumulative counter was reset. */
+            reset: z.boolean().optional(),
+            reading: z.discriminatedUnion('status', [
+                z.strictObject({
+                    status: z.literal('value'),
+                    value: numericCapabilityValueSchema,
+                }),
+                z.strictObject({ status: z.literal('unavailable') }),
+            ]),
+        })
+    ),
+})
+export type BridgeObservationReport = z.input<
+    typeof bridgeObservationReportSchema
+>
