@@ -4,8 +4,8 @@ import { useAuth, useUser } from '@clerk/nextjs'
 import { api, useMutation, useQuery } from '@nemu/cloud'
 import {
     buildTlsTrustUrl,
-    clearClientToken,
     discoverController,
+    forgetLegacyClientTokens,
     getRememberedBaseUrl,
     getRememberedControllerId,
     INVALID_GRANT_ERROR_CODE,
@@ -87,6 +87,8 @@ function pairAgainMessage(reason: string | null): string | null {
     const known: Partial<Record<PairAgainReason, string>> = {
         not_paired:
             'This browser’s keys for your Home are gone. Pair it again at home.',
+        bearer_token_retired:
+            'Nemu now pairs each browser with its own keys. Pair this browser again at home.',
         unknown_access_client:
             'This browser no longer has access to your Home. It may have been removed. Pair it again at home.',
         tombstoned_access_client:
@@ -268,7 +270,7 @@ export default function SetupPage() {
                 setRememberedControllerId(id)
                 setRememberedBaseUrl(result.baseUrl)
                 // A bearer token from before Access Client keys is dead.
-                clearClientToken()
+                forgetLegacyClientTokens()
             }
 
             if (!id) {

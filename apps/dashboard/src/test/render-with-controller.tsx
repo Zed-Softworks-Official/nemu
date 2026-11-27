@@ -1,31 +1,32 @@
 import { ControllerProvider } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     type FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
-/** The token this dashboard's Access Client presents to the fake Controller. */
-export const DASHBOARD_TOKEN = 'dashboard-token'
+/** The Access Client ID this dashboard holds keys for on the fake Controller. */
+export const DASHBOARD_ACCESS_CLIENT_ID = 'dashboard-access-client'
 
 /**
  * Render dashboard UI against a fake Controller through the shared
- * Controller client, so tests run the real LAN-then-Relay selection.
+ * Controller client, so tests run the real LAN-then-Relay selection with
+ * this browser's Access Client keys.
  */
 export function renderWithController(
     ui: ReactNode,
     controller: FakeController
 ) {
-    const credentialStore = createMemoryCredentialStore({
-        [controller.controllerId]: { clientToken: DASHBOARD_TOKEN },
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: DASHBOARD_ACCESS_CLIENT_ID,
     })
     return render(
         <ControllerProvider
+            accessClientKeyStore={accessClientKeyStore}
             connectors={fakeControllerConnectors(controller)}
             controllerId={controller.controllerId}
-            credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             {ui}

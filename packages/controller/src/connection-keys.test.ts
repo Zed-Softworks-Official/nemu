@@ -1,15 +1,17 @@
-// ControllerConnection with an Access Client key store (NEM-130): it
-// authorizes with keys only, ignores bearer-token credentials, and reports
-// when this client must pair again at home.
+// ControllerConnection with an Access Client key store (NEM-130, NEM-131):
+// it authorizes with keys only and reports when this client must pair again
+// at home.
 
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import { ApiError } from '@nemu/protocol'
-import type { PairAgainReason } from './access-client-keys.ts'
+import {
+    BEARER_TOKEN_RETIRED_ERROR_CODE,
+    type PairAgainReason,
+} from './access-client-keys.ts'
 import { ControllerConnection } from './connection.ts'
 import {
     createMemoryAccessClientKeyStore,
-    createMemoryCredentialStore,
     FakeController,
     fakeControllerConnectors,
     pairFakeAccessClient,
@@ -60,7 +62,7 @@ describe('ControllerConnection with Access Client keys', () => {
         assert.equal(connection.getStatus().mode, 'lan')
         await connection.getDevices()
         assert.equal(
-            controller.presentedTokens.at(-1),
+            controller.presentedAccessClientIds.at(-1),
             record.enrollment.accessClientId
         )
         assert.equal(connection.getPairingLoss(), null)
@@ -84,32 +86,47 @@ describe('ControllerConnection with Access Client keys', () => {
         assert.equal(connection.getStatus().mode, 'relay')
         await connection.getDevices()
         assert.equal(
-            controller.presentedTokens.at(-1),
+            controller.presentedAccessClientIds.at(-1),
             record.enrollment.accessClientId
         )
     })
 
-    it('treats a stored bearer-token credential as unpaired', async () => {
-        const controller = home({
-            acceptedTokens: ['nemu_old'],
-            lanReachable: false,
-        })
+    it('asks to pair again on a retired bearer token, and keeps its keys', async () => {
+        // Only an alpha build sends a bearer token, but the refusal still
+        // reads as "pair again at home" (NEM-131). It says nothing about
+        // these keys, so they stay.
+        const controller = home()
+        const keyStore = createMemoryAccessClientKeyStore()
+        await pairFakeAccessClient(controller, keyStore)
+        const fake = fakeControllerConnectors(controller)
         const connection = connect({
             controllerId: 'lake',
-            accessClientKeyStore: createMemoryAccessClientKeyStore(),
-            credentialStore: createMemoryCredentialStore({
-                lake: { clientToken: 'nemu_old' },
-            }),
-            convex: {} as never,
+            accessClientKeyStore: keyStore,
             lanCandidates: [controller.baseUrl],
-            connectors: fakeControllerConnectors(controller),
+            connectors: {
+                ...fake,
+                createLanTransport(options) {
+                    const transport = fake.createLanTransport(options)
+                    transport.getDevices = async () => {
+                        throw new ApiError(
+                            BEARER_TOKEN_RETIRED_ERROR_CODE,
+                            'Bearer tokens no longer work. Pair this device again at home.',
+                            401
+                        )
+                    }
+                    return transport
+                },
+            },
         })
 
         await connection.start()
 
-        // Relay needs keys; the old token is never presented anywhere.
+        assert.deepEqual(connection.getPairingLoss(), {
+            controllerId: 'lake',
+            reason: 'bearer_token_retired',
+        })
         assert.equal(connection.getStatus().mode, 'offline')
-        assert.equal(controller.presentedTokens.includes('nemu_old'), false)
+        assert.ok(await keyStore.load('lake'), 'keys kept')
     })
 
     for (const revoked of ['lan', 'relay'] as const) {
@@ -132,7 +149,7 @@ describe('ControllerConnection with Access Client keys', () => {
                 losses.push(loss?.reason ?? null)
             )
 
-            controller.revokeToken(record.enrollment.accessClientId)
+            controller.revokeAccessClient(record.enrollment.accessClientId)
             await assert.rejects(connection.getDevices(), (err: unknown) => {
                 assert.ok(err instanceof ApiError)
                 assert.equal(err.code, 'tombstoned_access_client')
@@ -164,7 +181,7 @@ describe('ControllerConnection with Access Client keys', () => {
             connectors: fakeControllerConnectors(controller),
         })
         await connection.start()
-        controller.revokeToken(record.enrollment.accessClientId)
+        controller.revokeAccessClient(record.enrollment.accessClientId)
         await assert.rejects(connection.getDevices())
         assert.ok(connection.getPairingLoss())
 
@@ -180,7 +197,7 @@ describe('ControllerConnection with Access Client keys', () => {
         const controller = home()
         const keyStore = createMemoryAccessClientKeyStore()
         const record = await pairFakeAccessClient(controller, keyStore)
-        controller.revokeToken(record.enrollment.accessClientId)
+        controller.revokeAccessClient(record.enrollment.accessClientId)
         const connection = connect({
             controllerId: 'lake',
             accessClientKeyStore: keyStore,

@@ -1,7 +1,7 @@
 import { ControllerProvider } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { Device, DeviceState } from '@nemu/protocol'
@@ -43,7 +43,7 @@ describe.each([
         }
         return new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             devices: [device],
             lanReachable,
         })
@@ -53,13 +53,14 @@ describe.each([
         controller: FakeController,
         content = <DeviceSheet deviceId="device" onClose={() => {}} />
     ) {
-        const credentialStore = createMemoryCredentialStore()
-        credentialStore.set('lake', { clientToken: 'token' })
+        const accessClientKeyStore = fakeAccessClientKeyStore({
+            lake: 'phone-access-client',
+        })
         await render(
             <ControllerProvider
+                accessClientKeyStore={accessClientKeyStore}
                 connectors={fakeControllerConnectors(controller)}
                 controllerId="lake"
-                credentialStore={credentialStore}
                 lanCandidates={[controller.baseUrl]}
             >
                 <HomeControlProvider>{content}</HomeControlProvider>

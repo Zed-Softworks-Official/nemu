@@ -140,7 +140,7 @@ describe('LanTransport with a Local session', () => {
         const url = new URL(upgrades[0] ?? '', lan.baseUrl)
         assert.equal(url.pathname, '/ws')
         assert.ok(url.searchParams.get('session'))
-        assert.equal(url.searchParams.get('token'), null)
+        assert.equal(url.searchParams.get('client'), null)
         transport.disconnect()
     })
 })

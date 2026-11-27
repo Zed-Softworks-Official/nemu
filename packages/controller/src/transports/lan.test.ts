@@ -54,7 +54,7 @@ beforeEach(() => {
 })
 
 function lan(): LanTransport {
-    return new LanTransport({ baseUrl, getToken: () => 'token-a' })
+    return new LanTransport({ baseUrl })
 }
 
 describe('LanTransport Device and Room setup', () => {

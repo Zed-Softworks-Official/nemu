@@ -9,10 +9,7 @@ import {
     historyQueryResultSchema,
     homeMeterDesignationResultSchema,
 } from './history.ts'
-import {
-    relayToClientEnvelopeSchema,
-    relayToControllerEnvelopeSchema,
-} from './relay.ts'
+import { relayReplyMessageSchema, relayRequestMessageSchema } from './relay.ts'
 
 const deviceId = '6f1d7c6a-6a2e-4d0a-9c3e-3d6c1b9a4e21'
 const capabilityId = '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32'
@@ -94,45 +91,35 @@ describe('history query messages', () => {
             ...query,
             requestId: 'req-1',
         })
-        const relay = relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-1',
-            clientToken: 'token',
-            message: query,
-        })
+        const relay = relayRequestMessageSchema.parse(query)
         assert.equal(lan.type, 'historyQuery')
-        assert.equal(relay.message.type, 'historyQuery')
+        assert.equal(relay.type, 'historyQuery')
         if (
             lan.type === 'historyQuery' &&
-            relay.message.type === 'historyQuery' &&
+            relay.type === 'historyQuery' &&
             'scope' in lan &&
-            'scope' in relay.message
+            'scope' in relay
         ) {
-            assert.deepEqual(lan.scope, relay.message.scope)
-            assert.equal(lan.metric, relay.message.metric)
-            assert.equal(lan.resolution, relay.message.resolution)
-            assert.equal(lan.maxPoints, relay.message.maxPoints)
+            assert.deepEqual(lan.scope, relay.scope)
+            assert.equal(lan.metric, relay.metric)
+            assert.equal(lan.resolution, relay.resolution)
+            assert.equal(lan.maxPoints, relay.maxPoints)
         }
         historyQueryMessageSchema.parse(query)
     })
 
     it('parses a member result without operational health', () => {
         const parsed = historyQueryResultSchema.parse(memberResult)
-        const relay = relayToClientEnvelopeSchema.parse({
-            requestId: 'req-1',
-            signature: 'signed',
-            message: memberResult,
-        })
+        const relay = relayReplyMessageSchema.parse(memberResult)
         assert.equal(parsed.health, undefined)
         assert.equal('health' in memberResult, false)
         assert.equal('queue' in memberResult, false)
         assert.deepEqual(parsed.reasons, ['gap', 'coverage'])
-        assert.equal(relay.message.type, 'historyQueryResult')
-        if (relay.message.type === 'historyQueryResult') {
-            assert.equal(relay.message.series[0]?.points.length, 1)
+        assert.equal(relay.type, 'historyQueryResult')
+        if (relay.type === 'historyQueryResult') {
+            assert.equal(relay.series[0]?.points.length, 1)
             assert.deepEqual(
-                relay.message.series[0]?.missing.map(
-                    (interval) => interval.kind
-                ),
+                relay.series[0]?.missing.map((interval) => interval.kind),
                 ['missing', 'stale', 'rejected', 'unavailable']
             )
         }
@@ -149,13 +136,12 @@ describe('history query messages', () => {
             scope: { type: 'home' },
             requestId: 'req-home',
         })
-        const relay = relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-home',
-            clientToken: 'token',
-            message: { ...query, scope: { type: 'home' } },
+        const relay = relayRequestMessageSchema.parse({
+            ...query,
+            scope: { type: 'home' },
         })
         assert.equal(lan.type, 'historyQuery')
-        assert.equal(relay.message.type, 'historyQuery')
+        assert.equal(relay.type, 'historyQuery')
         assert.throws(() =>
             historyQueryMessageSchema.parse({
                 ...query,
@@ -175,13 +161,9 @@ describe('history query messages', () => {
             ...selection,
             requestId: 'req-designate',
         })
-        const relay = relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-designate',
-            clientToken: 'token',
-            message: selection,
-        })
+        const relay = relayRequestMessageSchema.parse(selection)
         assert.equal(lan.type, 'designateHomeMeter')
-        assert.equal(relay.message.type, 'designateHomeMeter')
+        assert.equal(relay.type, 'designateHomeMeter')
         designateHomeMeterMessageSchema.parse(selection)
         getHomeMeterDesignationMessageSchema.parse({
             type: 'getHomeMeterDesignation',
@@ -209,12 +191,8 @@ describe('history query messages', () => {
             },
         })
         assert.equal(result.designation?.powerCapabilityId, capabilityId)
-        const relayResult = relayToClientEnvelopeSchema.parse({
-            requestId: 'req-read',
-            signature: 'signed',
-            message: result,
-        })
-        assert.equal(relayResult.message.type, 'homeMeterDesignation')
+        const relayResult = relayReplyMessageSchema.parse(result)
+        assert.equal(relayResult.type, 'homeMeterDesignation')
         assert.throws(() =>
             designateHomeMeterMessageSchema.parse({
                 type: 'designateHomeMeter',
@@ -241,23 +219,15 @@ describe('history query messages', () => {
             ...continued,
             requestId: 'req-2',
         })
-        const relay = relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-2',
-            clientToken: 'token',
-            message: continued,
-        })
+        const relay = relayRequestMessageSchema.parse(continued)
         assert.equal(lan.type, 'historyQuery')
-        assert.equal(relay.message.type, 'historyQuery')
+        assert.equal(relay.type, 'historyQuery')
         const cursorOnly = {
             type: 'historyQuery' as const,
             cursor: 'hqc_opaque',
         }
         clientWsMessageSchema.parse({ ...cursorOnly, requestId: 'req-3' })
-        relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-3',
-            clientToken: 'token',
-            message: cursorOnly,
-        })
+        relayRequestMessageSchema.parse(cursorOnly)
         const monthly = historyQueryResultSchema.parse({
             ...memberResult,
             incomplete: false,
@@ -281,14 +251,10 @@ describe('history query messages', () => {
             reason: 'cursor_expired' as const,
         }
         const parsed = historyQueryRestartSchema.parse(restart)
-        const relay = relayToClientEnvelopeSchema.parse({
-            requestId: 'req-1',
-            signature: 'signed',
-            message: restart,
-        })
+        const relay = relayReplyMessageSchema.parse(restart)
         assert.equal(parsed.reason, 'cursor_expired')
         assert.equal('series' in parsed, false)
-        assert.equal(relay.message.type, 'historyQueryRestart')
+        assert.equal(relay.type, 'historyQueryRestart')
         assert.throws(() => historyQueryResultSchema.parse(restart))
 
         const rankingsOnly = historyQueryResultSchema.parse({
@@ -350,39 +316,30 @@ describe('history query messages', () => {
             breakdown: true,
             requestId: 'req-breakdown',
         })
-        const relayBreakdown = relayToControllerEnvelopeSchema.parse({
-            requestId: 'req-breakdown',
-            clientToken: 'token',
-            message: {
-                ...query,
-                scope: { type: 'home' as const },
-                breakdown: true,
-            },
+        const relayBreakdown = relayRequestMessageSchema.parse({
+            ...query,
+            scope: { type: 'home' as const },
+            breakdown: true,
         })
         assert.equal(lanBreakdown.type, 'historyQuery')
-        assert.equal(relayBreakdown.message.type, 'historyQuery')
+        assert.equal(relayBreakdown.type, 'historyQuery')
         if (
             lanBreakdown.type === 'historyQuery' &&
-            relayBreakdown.message.type === 'historyQuery' &&
+            relayBreakdown.type === 'historyQuery' &&
             'breakdown' in lanBreakdown &&
-            'breakdown' in relayBreakdown.message
+            'breakdown' in relayBreakdown
         ) {
             assert.equal(lanBreakdown.breakdown, true)
-            assert.equal(relayBreakdown.message.breakdown, true)
+            assert.equal(relayBreakdown.breakdown, true)
         }
-        const relayResult = relayToClientEnvelopeSchema.parse({
-            requestId: 'req-breakdown',
-            signature: 'signed',
-            message: withShare,
-        })
-        assert.equal(relayResult.message.type, 'historyQueryResult')
-        if (relayResult.message.type === 'historyQueryResult') {
+        const relayResult = relayReplyMessageSchema.parse(withShare)
+        assert.equal(relayResult.type, 'historyQueryResult')
+        if (relayResult.type === 'historyQueryResult') {
             assert.equal(
-                relayResult.message.breakdown?.consuming[0]
-                    ?.percentageBasisPoints,
+                relayResult.breakdown?.consuming[0]?.percentageBasisPoints,
                 4000
             )
-            assert.equal(relayResult.message.breakdown?.unattributed?.value, 60)
+            assert.equal(relayResult.breakdown?.unattributed?.value, 60)
         }
         const inconsistent = historyQueryResultSchema.parse({
             ...memberResult,

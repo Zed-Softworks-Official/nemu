@@ -1,6 +1,5 @@
 //! Seam 2 (NEM-63 spec): Core's HTTP router in-process. Pairing with CPace,
-//! Local sessions, revocation, and bearer tokens working alongside keys
-//! until NEM-131. The Access Client side runs on Core's own CPace and
+//! Local sessions, revocation, and the refusal of retired bearer tokens. The Access Client side runs on Core's own CPace and
 //! signing code, which the shared wire vectors tie to the TypeScript client.
 //!
 //! These tests need the isolated test PostgreSQL
@@ -17,7 +16,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::crypto::{ControllerEncryptionKey, ControllerKeypair};
-use crate::db::schema::{access_clients, client_tokens, members, pairing_codes, settings};
+use crate::db::schema::{access_clients, members, pairing_codes, settings};
 use crate::identity::ControllerIdentity;
 use crate::pairing::codes::{MAX_PAIRING_ATTEMPTS, mint_pairing_code};
 use crate::pairing::exchange::RECOVERY_KEY_SETTING;
@@ -38,7 +37,6 @@ pub(super) async fn empty_home() -> DbPool {
     let conn = pool.get().await.unwrap();
     conn.interact(|conn| {
         diesel::delete(access_clients::table).execute(conn)?;
-        diesel::delete(client_tokens::table).execute(conn)?;
         diesel::delete(members::table).execute(conn)?;
         diesel::delete(pairing_codes::table).execute(conn)?;
         clear_tombstones(conn)?;
@@ -455,27 +453,26 @@ async fn a_wrong_code_fails_on_the_client_and_the_code_runs_out_of_guesses() {
 
 #[tokio::test]
 #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-async fn wrong_bearer_pairing_guesses_spend_the_code_too() {
+async fn the_bearer_pairing_route_is_gone_and_spends_nothing() {
     let _home = crate::db::HOME_TABLES.lock().await;
     let home = Home::new().await;
     let code = home.pairing_code().await;
-    let legacy = |code: &str| json!({ "code": code, "clientLabel": "old phone", "userId": "owner-1", "email": "owner@example.com" });
-    for _ in 0..MAX_PAIRING_ATTEMPTS {
-        let response = home
-            .call("POST", "/api/pair", None, Some(legacy(&wrong(&code))))
+    let legacy = json!({ "code": code, "clientLabel": "old phone", "userId": "owner-1", "email": "owner@example.com" });
+    for _ in 0..=MAX_PAIRING_ATTEMPTS {
+        let (status, body) = home
+            .call("POST", "/api/pair", None, Some(legacy.clone()))
             .await;
-        assert_eq!(
-            code_of(&response),
-            (StatusCode::UNAUTHORIZED, "invalid_code")
-        );
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert!(body.get("clientToken").is_none());
     }
-    let response = home
-        .call("POST", "/api/pair", None, Some(legacy(&code)))
-        .await;
-    assert_eq!(
-        code_of(&response),
-        (StatusCode::UNAUTHORIZED, "invalid_code")
-    );
+    // The code was never spent, so a CPace Access Client still pairs with it.
+    pair(
+        &home,
+        &code,
+        9,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -741,11 +738,11 @@ async fn revoking_an_access_client_ends_its_local_sessions_at_once() {
     let phone_session = open_session(&home, &phone).await.unwrap();
     let tablet_session = open_session(&home, &tablet).await.unwrap();
 
-    // Owners see and revoke CPace Access Clients like bearer tokens.
+    // Owners list Access Clients and revoke one by its Access Client ID.
     let (_, listed) = home
-        .call("GET", "/api/tokens", Some(&owner_session), None)
+        .call("GET", "/api/access-clients", Some(&owner_session), None)
         .await;
-    let ids: Vec<&str> = listed["tokens"]
+    let ids: Vec<&str> = listed["accessClients"]
         .as_array()
         .unwrap()
         .iter()
@@ -758,7 +755,7 @@ async fn revoking_an_access_client_ends_its_local_sessions_at_once() {
     let (status, _) = home
         .call(
             "DELETE",
-            &format!("/api/tokens/{}", tablet.access_client_id),
+            &format!("/api/access-clients/{}", tablet.access_client_id),
             Some(&owner_session),
             None,
         )
@@ -774,7 +771,12 @@ async fn revoking_an_access_client_ends_its_local_sessions_at_once() {
 
     // An Access Client revokes itself.
     let (status, _) = home
-        .call("DELETE", "/api/tokens/current", Some(&phone_session), None)
+        .call(
+            "DELETE",
+            "/api/access-clients/current",
+            Some(&phone_session),
+            None,
+        )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
     let response = home
@@ -897,43 +899,250 @@ async fn pairing_codes_are_open_only_until_the_first_access_client() {
     assert_eq!(body["code"].as_str().unwrap().len(), 6);
 }
 
+/// What an alpha Access Client still holds: a bearer token from `/api/pair`.
+const RETIRED_TOKEN: &str = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0";
+
 #[tokio::test]
 #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
-async fn bearer_tokens_keep_working_alongside_keys() {
+async fn bearer_tokens_are_refused_with_a_pair_again_error() {
     let _home = crate::db::HOME_TABLES.lock().await;
     let home = Home::new().await;
     let code = home.pairing_code().await;
-    let (status, paired) = home
-        .call(
-            "POST",
-            "/api/pair",
-            None,
-            Some(json!({ "code": code, "clientLabel": "old phone", "userId": "owner-1", "email": "owner@example.com" })),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK);
-    let bearer = format!("Bearer {}", paired["clientToken"].as_str().unwrap());
-    assert_eq!(
-        home.call("GET", "/api/session", Some(&bearer), None)
-            .await
-            .1,
-        json!({ "role": "owner" })
-    );
-
-    // The bearer Owner mints a code, and a CPace client pairs with it.
-    let (_, minted) = home
-        .call("POST", "/api/pairing-code", Some(&bearer), None)
-        .await;
-    let client = pair(
+    let owner = pair(
         &home,
-        minted["code"].as_str().unwrap(),
+        &code,
         17,
         identity_body("owner-1", "owner@example.com"),
     )
     .await;
-    let session = open_session(&home, &client).await.unwrap();
-    let (_, listed) = home.call("GET", "/api/tokens", Some(&session), None).await;
-    assert_eq!(listed["tokens"].as_array().unwrap().len(), 2);
+    let bearer = format!("Bearer {RETIRED_TOKEN}");
+
+    for path in ["/api/session", "/api/devices", "/api/access-clients"] {
+        let response = home.call("GET", path, Some(&bearer), None).await;
+        assert_eq!(
+            code_of(&response),
+            (StatusCode::UNAUTHORIZED, "bearer_token_retired"),
+            "{path}"
+        );
+        let response = home
+            .call("GET", &format!("{path}?token={RETIRED_TOKEN}"), None, None)
+            .await;
+        assert_eq!(
+            code_of(&response),
+            (StatusCode::UNAUTHORIZED, "bearer_token_retired"),
+            "{path}?token="
+        );
+    }
+    // The WebSocket and the Owner-only pairing code refuse it too.
+    let response = home
+        .call("GET", &format!("/ws?token={RETIRED_TOKEN}"), None, None)
+        .await;
+    assert_eq!(
+        code_of(&response),
+        (StatusCode::UNAUTHORIZED, "bearer_token_retired")
+    );
+    let response = home
+        .call("POST", "/api/pairing-code", Some(&bearer), None)
+        .await;
+    assert_eq!(
+        code_of(&response),
+        (StatusCode::UNAUTHORIZED, "bearer_token_retired")
+    );
+
+    // A bearer token next to a valid Local session still fails: the
+    // Controller never falls back to a token, and never mixes the two.
+    let session = open_session(&home, &owner).await.unwrap();
+    let token = session.strip_prefix("NemuSession ").unwrap();
+    assert_eq!(
+        home.call("GET", &format!("/api/session?session={token}"), None, None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    let response = home
+        .call(
+            "GET",
+            &format!("/api/session?session={token}"),
+            Some(&bearer),
+            None,
+        )
+        .await;
+    assert_eq!(
+        code_of(&response),
+        (StatusCode::UNAUTHORIZED, "bearer_token_retired")
+    );
+
+    // The token routes are gone; Access Clients are listed by their IDs.
+    for path in ["/api/tokens", "/api/tokens/current"] {
+        let method = if path.ends_with("current") {
+            "DELETE"
+        } else {
+            "GET"
+        };
+        assert_eq!(
+            home.call(method, path, Some(&session), None).await.0,
+            StatusCode::NOT_FOUND,
+            "{path}"
+        );
+    }
+    let (status, listed) = home
+        .call("GET", "/api/access-clients", Some(&session), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let listed = listed["accessClients"].as_array().unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0]["id"], json!(owner.access_client_id));
+    assert_eq!(listed[0]["label"], json!("phone"));
+}
+
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn first_owner_bootstrap_is_only_pairing() {
+    // `/api/members/bootstrap` linked a bearer token to a new Owner; CPace
+    // pairing now bootstraps the first Owner itself.
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let owner = pair(
+        &home,
+        &code,
+        18,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let session = open_session(&home, &owner).await.unwrap();
+    let (status, _) = home
+        .call(
+            "POST",
+            "/api/members/bootstrap",
+            Some(&session),
+            Some(json!({ "userId": "owner-2", "email": "other@example.com" })),
+        )
+        .await;
+    // `/api/members/{id}` only deletes, so the path no longer runs anything.
+    assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED);
+    let (_, members) = home.call("GET", "/api/members", Some(&session), None).await;
+    assert_eq!(members["members"].as_array().unwrap().len(), 1);
+}
+
+/// Privacy check (NEM-131): Convex stores a sealed request and its sealed
+/// response exactly as the Access Client and Controller wrote them. No part
+/// of either works as a LAN credential, and the request cannot be run again.
+#[tokio::test]
+#[ignore = "requires the isolated PostgreSQL database created by the verification script"]
+async fn nothing_in_a_relay_envelope_authenticates_as_an_access_client() {
+    use crate::relay_crypto::envelope::{RequestHeader, open_response, seal_request};
+
+    let _home = crate::db::HOME_TABLES.lock().await;
+    let home = Home::new().await;
+    let code = home.pairing_code().await;
+    let phone = pair(
+        &home,
+        &code,
+        19,
+        identity_body("owner-1", "owner@example.com"),
+    )
+    .await;
+    let header = RequestHeader {
+        controller_id: CONTROLLER_ID.to_string(),
+        identity_epoch: 1,
+        access_client_id: phone.access_client_id.clone(),
+        request_id: "privacy-check".to_string(),
+        counter: 1,
+        expires_at: u64::try_from(chrono::Utc::now().timestamp_millis()).unwrap() + 20_000,
+    };
+    let (sealed, keys) = seal_request(
+        header.clone(),
+        br#"{"type":"getSession"}"#,
+        &phone.pinned.encryption_key,
+        &phone.signing,
+    )
+    .unwrap();
+    let response = crate::relay::handler::handle_sealed_request(&home.state, &sealed)
+        .await
+        .unwrap();
+    let reply: Value = serde_json::from_slice(
+        &open_response(&response, &header, &keys, &phone.pinned.signing_key).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(reply, json!({ "type": "session", "role": "owner" }));
+
+    // Every value Convex holds for this exchange: the clear headers and the
+    // opaque sealed parts.
+    let mut stored = Vec::new();
+    collect_strings(&serde_json::to_value(&sealed).unwrap(), &mut stored);
+    collect_strings(&serde_json::to_value(&response).unwrap(), &mut stored);
+    assert!(stored.len() >= 8, "{stored:?}");
+    for value in &stored {
+        let encoded = urlencode(value);
+        for (auth, query) in [
+            (Some(format!("NemuSession {value}")), String::new()),
+            (Some(format!("Bearer {value}")), String::new()),
+            (None, format!("?session={encoded}")),
+            (None, format!("?token={encoded}")),
+        ] {
+            let (status, _) = home
+                .call(
+                    "GET",
+                    &format!("/api/session{query}"),
+                    auth.as_deref(),
+                    None,
+                )
+                .await;
+            assert_eq!(status, StatusCode::UNAUTHORIZED, "{auth:?}{query}");
+        }
+    }
+
+    // The request's signature does not open a Local session either: it
+    // signs the envelope, not a Controller nonce.
+    let (_, challenge) = home
+        .call("POST", "/api/local-sessions/challenge", None, None)
+        .await;
+    let (status, _) = home
+        .call(
+            "POST",
+            "/api/local-sessions",
+            None,
+            Some(json!({
+                "accessClientId": phone.access_client_id,
+                "nonce": challenge["nonce"],
+                "signature": sealed.signature,
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
+    // Replaying the stored request is refused before it runs again.
+    let replayed = crate::relay::handler::handle_sealed_request(&home.state, &sealed)
+        .await
+        .unwrap();
+    let refusal: Value = serde_json::from_slice(
+        &open_response(&replayed, &header, &keys, &phone.pinned.signing_key).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(refusal["ok"], json!(false), "{refusal}");
+}
+
+fn collect_strings(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::String(text) => out.push(text.clone()),
+        Value::Number(number) => out.push(number.to_string()),
+        Value::Array(items) => items.iter().for_each(|item| collect_strings(item, out)),
+        Value::Object(fields) => fields.values().for_each(|item| collect_strings(item, out)),
+        _ => {}
+    }
+}
+
+fn urlencode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (byte as char).to_string()
+            }
+            other => format!("%{other:02X}"),
+        })
+        .collect()
 }
 
 #[tokio::test]
@@ -1071,7 +1280,7 @@ async fn revoking_an_access_client_tombstones_its_id_and_keys() {
     let (status, _) = home
         .call(
             "DELETE",
-            &format!("/api/tokens/{}", phone.access_client_id),
+            &format!("/api/access-clients/{}", phone.access_client_id),
             Some(&owner_session),
             None,
         )
@@ -1119,7 +1328,12 @@ async fn revoking_the_current_access_client_tombstones_it() {
     .await;
     let session = open_session(&home, &phone).await.unwrap();
     let (status, _) = home
-        .call("DELETE", "/api/tokens/current", Some(&session), None)
+        .call(
+            "DELETE",
+            "/api/access-clients/current",
+            Some(&session),
+            None,
+        )
         .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
     assert_eq!(
@@ -1134,7 +1348,7 @@ async fn revoking_the_current_access_client_tombstones_it() {
 #[tokio::test]
 #[ignore = "requires the isolated PostgreSQL database created by the verification script"]
 async fn revoking_over_relay_drops_local_sessions_at_once() {
-    use crate::api::auth::{AuthenticatedClient, Credential};
+    use crate::api::auth::AuthenticatedClient;
 
     let _home = crate::db::HOME_TABLES.lock().await;
     let home = Home::new().await;
@@ -1155,10 +1369,9 @@ async fn revoking_over_relay_drops_local_sessions_at_once() {
     crate::api::access::revoke_current(
         &home.state,
         &AuthenticatedClient {
-            token_id: id,
+            access_client_id: id,
             label: "phone".into(),
             user_id: Some("owner-1".into()),
-            credential: Credential::AccessClient,
         },
     )
     .await
@@ -1279,8 +1492,13 @@ async fn tombstones_are_never_deleted_or_changed() {
     )
     .await;
     let session = open_session(&home, &phone).await.unwrap();
-    home.call("DELETE", "/api/tokens/current", Some(&session), None)
-        .await;
+    home.call(
+        "DELETE",
+        "/api/access-clients/current",
+        Some(&session),
+        None,
+    )
+    .await;
 
     let conn = home.state.db.get().await.unwrap();
     let (deleted, updated, count) = conn

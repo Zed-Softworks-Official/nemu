@@ -1,14 +1,14 @@
 import {
+    type AccessClient,
     ApiError,
     type ApplyUpdateResponse,
     type AssignRoomRequest,
+    accessClientSchema,
     applyUpdateResponseSchema,
     assignRoomRequestSchema,
-    type ClientToken,
     type CommandResult,
     type CommissionResponse,
     type CreateRoomRequest,
-    clientTokenSchema,
     createRoomRequestSchema,
     type Device,
     type DeviceCommand,
@@ -196,7 +196,7 @@ const RELAY_READS: ReadonlySet<RelayRequestMessage['type']> = new Set<
     'getDevices',
     'getRooms',
     'listMembers',
-    'listTokens',
+    'listAccessClients',
     'getCapabilitySnapshot',
     'watchCapabilityChanges',
     'historyQuery',
@@ -611,27 +611,30 @@ export class RelayTransport implements ControllerTransport {
         throw new Error('Unexpected relay response for removeMember')
     }
 
-    async getTokens(): Promise<ClientToken[]> {
-        const parsed = await this.request({ type: 'listTokens' })
-        if (parsed.message.type === 'tokens') {
-            return parsed.message.tokens.map((token) =>
-                clientTokenSchema.parse(token)
+    async listAccessClients(): Promise<AccessClient[]> {
+        const parsed = await this.request({ type: 'listAccessClients' })
+        if (parsed.message.type === 'accessClients') {
+            return parsed.message.accessClients.map((client) =>
+                accessClientSchema.parse(client)
             )
         }
         this.throwIfCommandError(parsed, 'list devices')
-        throw new Error('Unexpected relay response for listTokens')
+        throw new Error('Unexpected relay response for listAccessClients')
     }
 
-    async revokeToken(tokenId: string): Promise<void> {
-        const parsed = await this.request({ type: 'revokeToken', tokenId })
+    async revokeAccessClient(accessClientId: string): Promise<void> {
+        const parsed = await this.request({
+            type: 'revokeAccessClient',
+            accessClientId,
+        })
         if (parsed.message.type === 'commandResult' && parsed.message.ok) {
             return
         }
         this.throwIfCommandError(parsed, 'revoke device')
-        throw new Error('Unexpected relay response for revokeToken')
+        throw new Error('Unexpected relay response for revokeAccessClient')
     }
 
-    async revokeCurrentToken(): Promise<void> {
+    async revokeCurrentAccessClient(): Promise<void> {
         const parsed = await this.request({ type: 'revokeCurrent' })
         if (parsed.message.type === 'commandResult' && parsed.message.ok) {
             return

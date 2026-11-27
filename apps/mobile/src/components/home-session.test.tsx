@@ -17,6 +17,7 @@ import {
     HomeSessionProvider,
     type HomeSessionServices,
     type MobileHome,
+    pairAgainNotice,
     useHomeSession,
 } from '~/components/home-session'
 import { PairHomeScreen } from '~/components/pair-home-screen'
@@ -250,7 +251,7 @@ describe('Returning to a paired Home', () => {
 
         await screen.findByText('Controlling Lake House via lan')
         await waitFor(() =>
-            expect(controller.presentedTokens).toContain(
+            expect(controller.presentedAccessClientIds).toContain(
                 record.enrollment.accessClientId
             )
         )
@@ -258,7 +259,7 @@ describe('Returning to a paired Home', () => {
 
     it('asks to pair again at home once the Controller revokes this phone', async () => {
         const { tree, controller, keyStore, record } = await pairedSetup()
-        controller.revokeToken(record.enrollment.accessClientId)
+        controller.revokeAccessClient(record.enrollment.accessClientId)
         await render(tree([LAKE]))
 
         await screen.findByRole('button', { name: 'Pair this phone' })
@@ -267,5 +268,13 @@ describe('Returning to a paired Home', () => {
         ).toBeTruthy()
         expect(screen.getByText(/Pair it again at home/)).toBeTruthy()
         expect(await keyStore.load('lake')).toBeNull()
+    })
+})
+
+describe('pairAgainNotice', () => {
+    it('tells a phone that held a retired bearer token to pair again at home', () => {
+        expect(pairAgainNotice('bearer_token_retired', 'Lake House')).toBe(
+            'Nemu now pairs each phone with its own keys. Pair this phone again at home to keep using Lake House.'
+        )
     })
 })

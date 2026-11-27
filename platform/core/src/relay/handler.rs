@@ -23,7 +23,7 @@ use serde_json::{Value as JsonValue, json};
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::api::auth::{AuthenticatedClient, Credential};
+use crate::api::auth::AuthenticatedClient;
 use crate::pairing::access_clients::find_access_client;
 use crate::pairing::tombstones::access_client_status;
 use crate::relay::dispatch::{self, RelayAction};
@@ -159,10 +159,9 @@ async fn lookup(
     // Same caller as over LAN, so every handler authorizes it the same way.
     // The role is read from the Membership on every request.
     let auth = AuthenticatedClient {
-        token_id: access_client.id,
+        access_client_id: access_client.id,
         label: access_client.label,
         user_id: member.user_id,
-        credential: Credential::AccessClient,
     };
     Ok((status, Some(Caller { auth, id })))
 }

@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
-    DASHBOARD_TOKEN,
+    DASHBOARD_ACCESS_CLIENT_ID,
     renderWithController,
 } from '~/test/render-with-controller'
 import DevicesPage from './page'
@@ -42,7 +42,7 @@ function home(options?: {
 }) {
     return new FakeController({
         controllerId: 'lake',
-        acceptedTokens: [DASHBOARD_TOKEN],
+        acceptedAccessClients: [DASHBOARD_ACCESS_CLIENT_ID],
         lanReachable: options?.lanReachable ?? true,
         relayReachable: options?.relayReachable ?? true,
         devices: options?.devices ?? [LAMP, PLUG],

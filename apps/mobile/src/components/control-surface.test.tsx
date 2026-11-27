@@ -4,8 +4,8 @@ import {
     useController,
 } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { CapabilityCurrentState, Device } from '@nemu/protocol'
@@ -73,13 +73,14 @@ async function renderSurface(
     view: React.ReactNode = <RoomsView />,
     connectors: ControllerConnectors = fakeControllerConnectors(controller)
 ) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     await render(
         <ControllerProvider
+            accessClientKeyStore={accessClientKeyStore}
             connectors={connectors}
             controllerId={controller.controllerId}
-            credentialStore={credentialStore}
             lanCandidates={[controller.baseUrl]}
         >
             <CaptureReprobe />
@@ -91,7 +92,7 @@ async function renderSurface(
 function home(options?: { lanReachable?: boolean; relayReachable?: boolean }) {
     return new FakeController({
         controllerId: 'lake',
-        acceptedTokens: ['token'],
+        acceptedAccessClients: ['phone-access-client'],
         devices: [LAMP, PLUG],
         rooms: [
             { id: 'bedroom', name: 'Bedroom', sortOrder: 2 },

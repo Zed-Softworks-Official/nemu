@@ -1,7 +1,7 @@
 import { ControllerProvider, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { SessionRole, UpdateStatusResponse } from '@nemu/protocol'
@@ -62,15 +62,16 @@ function CaptureReprobe() {
 }
 
 function routes(controller: FakeController) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     const connectors = fakeControllerConnectors(controller)
     return {
         _layout: () => (
             <ControllerProvider
+                accessClientKeyStore={accessClientKeyStore}
                 connectors={connectors}
                 controllerId={controller.controllerId}
-                credentialStore={credentialStore}
             >
                 <CaptureReprobe />
                 <Slot />
@@ -117,7 +118,7 @@ describe.each([
     ): FakeController {
         const controller = new FakeController({
             controllerId: 'lake',
-            acceptedTokens: ['token'],
+            acceptedAccessClients: ['phone-access-client'],
             lanReachable,
             role,
         })

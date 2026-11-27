@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { deviceEventSchema } from './events.ts'
-import { relayToClientEnvelopeSchema } from './relay.ts'
+import { relayReplyMessageSchema } from './relay.ts'
 
 const capabilityId = '6f1d7c6a-6a2e-4d0a-9c3e-3d6c1b9a4e21'
 const epoch = '2b7e1c4a-8f3d-4a6b-9c1e-5d8a7b6c4e32'
@@ -43,19 +43,11 @@ const change = {
 describe('typed current-state transport messages', () => {
     it('uses the same snapshot and live-change messages on LAN and Relay', () => {
         const lanSnapshot = deviceEventSchema.parse(snapshot)
-        const relaySnapshot = relayToClientEnvelopeSchema.parse({
-            requestId: 'snapshot-request',
-            signature: 'signed',
-            message: snapshot,
-        })
-        assert.deepEqual(lanSnapshot, relaySnapshot.message)
+        const relaySnapshot = relayReplyMessageSchema.parse(snapshot)
+        assert.deepEqual(lanSnapshot, relaySnapshot)
 
         const lanChange = deviceEventSchema.parse(change)
-        const relayChange = relayToClientEnvelopeSchema.parse({
-            requestId: 'watch-request',
-            signature: 'signed',
-            message: change,
-        })
-        assert.deepEqual(lanChange, relayChange.message)
+        const relayChange = relayReplyMessageSchema.parse(change)
+        assert.deepEqual(lanChange, relayChange)
     })
 })

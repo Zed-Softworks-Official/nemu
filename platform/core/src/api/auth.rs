@@ -4,13 +4,11 @@ use axum::http::{HeaderMap, StatusCode, Uri};
 use uuid::Uuid;
 
 use crate::api::error::ApiError;
-use crate::db::models::ClientToken;
-use crate::pairing::access_clients::{count_access_clients, find_access_client};
+use crate::pairing::access_clients::find_access_client;
 use crate::pairing::local_sessions::revoked;
-use crate::pairing::tokens::{count_client_tokens, verify_client_token};
 use crate::pairing::tombstones::access_client_status;
 use crate::relay_crypto::envelope::AccessClientStatus;
-use crate::state::{AppState, DbPool};
+use crate::state::AppState;
 
 /// The `Authorization` scheme for a Local session.
 pub const LOCAL_SESSION_SCHEME: &str = "NemuSession";
@@ -18,26 +16,19 @@ pub const LOCAL_SESSION_SCHEME: &str = "NemuSession";
 /// headers on a WebSocket.
 pub const LOCAL_SESSION_QUERY: &str = "session";
 
-/// How the caller proved it is an Access Client.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Credential {
-    /// A bearer token from `POST /api/pair` or `sessionMint`. NEM-131
-    /// removes these.
-    ClientToken,
-    /// A Local session of an Access Client paired with CPace.
-    AccessClient,
-}
+/// The error code for a bearer token. Alpha Access Clients held one; they
+/// pair again at home (NEM-131), and clients treat this code that way.
+pub const BEARER_TOKEN_RETIRED: &str = "bearer_token_retired";
 
+/// An Access Client paired with CPace, authenticated by a Local session on
+/// the home network or by a sealed request over Relay.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct AuthenticatedClient {
-    /// The bearer token's ID, or the Access Client's ID.
-    pub token_id: Uuid,
+    pub access_client_id: Uuid,
     pub label: String,
     /// The Account of the caller's Membership. The role is looked up from it
     /// on every request; no credential carries one.
     pub user_id: Option<String>,
-    pub credential: Credential,
 }
 
 impl FromRequestParts<AppState> for AuthenticatedClient {
@@ -55,42 +46,43 @@ impl FromRequestParts<AppState> for AuthenticatedClient {
     }
 }
 
-impl AuthenticatedClient {
-    pub fn from_row(row: ClientToken) -> Self {
-        Self {
-            token_id: row.id,
-            label: row.label,
-            user_id: row.user_id,
-            credential: Credential::ClientToken,
-        }
-    }
-}
-
 fn unauthorized(code: &str, message: &str) -> ApiError {
     ApiError::new(StatusCode::UNAUTHORIZED, code, message)
 }
 
-/// Authenticates a LAN request by its Local session or, until NEM-131, its
-/// bearer token.
+/// Authenticates a LAN request by its Local session.
+///
+/// A bearer token (the `Bearer` scheme or `?token=`) is refused outright,
+/// even next to a valid Local session, with [`BEARER_TOKEN_RETIRED`]. It is
+/// never looked up: the Controller keeps no bearer tokens.
 pub async fn authenticate(
     state: &AppState,
     headers: &HeaderMap,
     uri: &Uri,
 ) -> Result<AuthenticatedClient, ApiError> {
-    if let Some(session) =
-        extract_local_session(headers).or_else(|| extract_query(uri, LOCAL_SESSION_QUERY))
-    {
-        return authenticate_local_session(state, &session).await;
+    if presents_bearer_token(headers, uri) {
+        return Err(unauthorized(
+            BEARER_TOKEN_RETIRED,
+            "Bearer tokens no longer work. Pair this device again at home.",
+        ));
     }
+    let session = extract_local_session(headers)
+        .or_else(|| extract_query(uri, LOCAL_SESSION_QUERY))
+        .ok_or_else(|| unauthorized("unauthorized", "Missing Local session"))?;
+    authenticate_local_session(state, &session).await
+}
 
-    let token = extract_bearer(headers)
-        .or_else(|| extract_query_token(uri))
-        .ok_or_else(|| unauthorized("unauthorized", "Missing client token"))?;
-    let row = verify_client_token(&state.db, &token)
-        .await
-        .map_err(ApiError::internal)?
-        .ok_or_else(|| unauthorized("unauthorized", "Invalid client token"))?;
-    Ok(AuthenticatedClient::from_row(row))
+fn presents_bearer_token(headers: &HeaderMap, uri: &Uri) -> bool {
+    let bearer_header = headers
+        .get_all(axum::http::header::AUTHORIZATION)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .any(|value| {
+            value
+                .split_once(' ')
+                .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("bearer"))
+        });
+    bearer_header || extract_query(uri, "token").is_some()
 }
 
 async fn authenticate_local_session(
@@ -119,17 +111,10 @@ async fn authenticate_local_session(
         return Err(invalid());
     };
     Ok(AuthenticatedClient {
-        token_id: access_client.id,
+        access_client_id: access_client.id,
         label: access_client.label,
         user_id: member.user_id,
-        credential: Credential::AccessClient,
     })
-}
-
-/// Bearer-token and CPace Access Clients together. First-run pairing stays
-/// open only while this is zero.
-pub async fn count_access_credentials(pool: &DbPool) -> Result<i64, String> {
-    Ok(count_client_tokens(pool).await? + count_access_clients(pool).await?)
 }
 
 fn extract_scheme(headers: &HeaderMap, scheme: &str) -> Option<String> {
@@ -146,14 +131,6 @@ fn extract_scheme(headers: &HeaderMap, scheme: &str) -> Option<String> {
 
 pub fn extract_local_session(headers: &HeaderMap) -> Option<String> {
     extract_scheme(headers, LOCAL_SESSION_SCHEME)
-}
-
-pub fn extract_bearer(headers: &HeaderMap) -> Option<String> {
-    extract_scheme(headers, "Bearer")
-}
-
-pub fn extract_query_token(uri: &Uri) -> Option<String> {
-    extract_query(uri, "token")
 }
 
 fn extract_query(uri: &Uri, name: &str) -> Option<String> {

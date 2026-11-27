@@ -61,52 +61,6 @@ fn mint_pairing_code_sync(conn: &mut PgConnection) -> Result<IssuedPairingCode, 
     Ok(IssuedPairingCode { code, expires_at })
 }
 
-pub async fn consume_pairing_code(pool: &DbPool, code: &str) -> Result<bool, String> {
-    let conn = pool
-        .get()
-        .await
-        .map_err(|e| format!("db pool error: {e}"))?;
-    let code = code.to_string();
-    conn.interact(move |conn| consume_pairing_code_sync(conn, &code))
-        .await
-        .map_err(|e| format!("db interact error: {e}"))?
-}
-
-fn consume_pairing_code_sync(conn: &mut PgConnection, code: &str) -> Result<bool, String> {
-    let code_hash = sha256_hex(code);
-    let now = Utc::now();
-
-    let row: Option<PairingCode> = pairing_codes::table
-        .filter(pairing_codes::code_hash.eq(&code_hash))
-        .filter(pairing_codes::consumed.eq(false))
-        .filter(pairing_codes::expires_at.gt(now))
-        .filter(pairing_codes::attempts.lt(MAX_PAIRING_ATTEMPTS))
-        .order(pairing_codes::created_at.desc())
-        .first(conn)
-        .optional()
-        .map_err(|e| format!("pairing code lookup failed: {e}"))?;
-
-    let Some(row) = row else {
-        // A wrong guess counts against every live code.
-        diesel::update(
-            pairing_codes::table
-                .filter(pairing_codes::consumed.eq(false))
-                .filter(pairing_codes::expires_at.gt(now)),
-        )
-        .set(pairing_codes::attempts.eq(pairing_codes::attempts + 1))
-        .execute(conn)
-        .map_err(|e| format!("failed to count pairing attempt: {e}"))?;
-        return Ok(false);
-    };
-
-    let updated = diesel::update(pairing_codes::table.find(row.id))
-        .set(pairing_codes::consumed.eq(true))
-        .execute(conn)
-        .map_err(|e| format!("failed to consume pairing code: {e}"))?;
-
-    Ok(updated > 0)
-}
-
 /// Takes one guess from the live Pairing code for a CPace run. `None` when no
 /// code is live or its guesses are used up.
 pub async fn begin_pairing_attempt(pool: &DbPool) -> Result<Option<PairingAttempt>, String> {

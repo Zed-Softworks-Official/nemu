@@ -1,7 +1,6 @@
 //! Access Clients paired with CPace (ADR-0037). Each row binds one Access
 //! Client's public keys to one Membership; deleting the Membership deletes
-//! its rows. Every deleted row leaves a tombstone (`pairing::tombstones`). Bearer-token Access Clients stay in `client_tokens` until
-//! NEM-131 removes them.
+//! its rows. Every deleted row leaves a tombstone (`pairing::tombstones`).
 
 use chrono::Utc;
 use diesel::prelude::*;

@@ -18,7 +18,7 @@ type Pending = 'remove' | 'leave'
  */
 export function HomeAccessSettings() {
     const { activeHome, forgetPairing, switchHome } = useHomeSession()
-    const { status, revokeCurrentToken, leaveHome } = useController()
+    const { status, revokeCurrentAccessClient, leaveHome } = useController()
     const [confirming, setConfirming] = useState<Pending | null>(null)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -52,7 +52,7 @@ export function HomeAccessSettings() {
         setError(null)
         try {
             if (action === 'remove') {
-                await revokeCurrentToken()
+                await revokeCurrentAccessClient()
                 forgetPairing()
             } else {
                 await leaveHome()
@@ -62,11 +62,11 @@ export function HomeAccessSettings() {
         } catch (cause) {
             if (credentialRejected(cause)) {
                 // The Controller no longer accepts this phone: it was
-                // already removed. Revoke what may remain (a token whose
-                // Membership is inactive), then clear this Home's
-                // credentials on the phone.
+                // already removed. Revoke what may remain (an Access Client
+                // whose Membership is inactive), then clear this Home's
+                // keys on the phone.
                 if (action === 'leave') {
-                    await revokeCurrentToken().catch(() => {})
+                    await revokeCurrentAccessClient().catch(() => {})
                 }
                 forgetPairing(`This phone was already removed from ${home}.`)
                 return

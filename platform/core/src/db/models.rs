@@ -115,26 +115,6 @@ pub struct NewAccessClient<'a> {
 }
 
 #[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
-#[diesel(table_name = crate::db::schema::client_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct ClientToken {
-    pub id: Uuid,
-    pub token_hash: String,
-    pub label: String,
-    pub created_at: DateTime<Utc>,
-    pub last_seen_at: Option<DateTime<Utc>>,
-    pub user_id: Option<String>,
-}
-
-#[derive(Debug, Insertable)]
-#[diesel(table_name = crate::db::schema::client_tokens)]
-pub struct NewClientToken<'a> {
-    pub token_hash: &'a str,
-    pub label: &'a str,
-    pub user_id: Option<&'a str>,
-}
-
-#[derive(Debug, Clone, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = crate::db::schema::members)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Member {

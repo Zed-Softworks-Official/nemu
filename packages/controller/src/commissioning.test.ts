@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
 import { ControllerConnection } from './connection.ts'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from './testing.ts'
 
@@ -17,8 +17,8 @@ async function connectTo(controller: FakeController) {
     const connection = new ControllerConnection({
         reprobeIntervalMs: 60_000,
         controllerId: controller.controllerId,
-        credentialStore: createMemoryCredentialStore({
-            [controller.controllerId]: { clientToken: 'token' },
+        accessClientKeyStore: fakeAccessClientKeyStore({
+            [controller.controllerId]: 'client',
         }),
         lanCandidates: [controller.baseUrl],
         connectors: fakeControllerConnectors(controller),
@@ -31,7 +31,7 @@ async function connectTo(controller: FakeController) {
 function home(lanReachable: boolean) {
     return new FakeController({
         controllerId: 'lake',
-        acceptedTokens: ['token'],
+        acceptedAccessClients: ['client'],
         lanReachable,
     })
 }
@@ -75,7 +75,7 @@ describe('Commissioning over Relay', () => {
         controller.matterWifi = { configured: true, networkName: 'home' }
         const connection = await connectTo(controller)
         assert.equal(connection.getStatus().mode, 'relay')
-        const transport = controller.createTransport('relay', () => 'token')
+        const transport = controller.createTransport('relay', 'client')
 
         // The connection refuses, and so does the Controller if it is asked.
         for (const target of [connection, transport]) {

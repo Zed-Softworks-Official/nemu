@@ -1,7 +1,7 @@
 import { ControllerProvider, useController } from '@nemu/controller'
 import {
-    createMemoryCredentialStore,
     FakeController,
+    fakeAccessClientKeyStore,
     fakeControllerConnectors,
 } from '@nemu/controller/testing'
 import type { Device, SessionRole } from '@nemu/protocol'
@@ -87,7 +87,7 @@ const FakeScanner: CodeScanner = ({ onCode }) => (
 function home(lanReachable: boolean, role: SessionRole = 'member') {
     return new FakeController({
         controllerId: 'lake',
-        acceptedTokens: ['token'],
+        acceptedAccessClients: ['phone-access-client'],
         lanReachable,
         role,
         devices: [structuredClone(PLUG)],
@@ -139,14 +139,16 @@ async function renderDevicesTab(
         initialUrl?: string
     } = {}
 ) {
-    const credentialStore = createMemoryCredentialStore()
-    credentialStore.set(controller.controllerId, { clientToken: 'token' })
+    const accessClientKeyStore = fakeAccessClientKeyStore({
+        [controller.controllerId]: 'phone-access-client',
+    })
     const connectors = fakeControllerConnectors(controller)
     const discover = connectors.discover
     return renderRouter(
         {
             _layout: () => (
                 <ControllerProvider
+                    accessClientKeyStore={accessClientKeyStore}
                     connectors={{
                         ...connectors,
                         discover: async (...args) => {
@@ -155,7 +157,6 @@ async function renderDevicesTab(
                         },
                     }}
                     controllerId={controller.controllerId}
-                    credentialStore={credentialStore}
                     lanCandidates={[controller.baseUrl]}
                 >
                     <Connection />

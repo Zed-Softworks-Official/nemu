@@ -189,21 +189,6 @@ export const patchOutletRequestSchema = z.object({
 })
 export type PatchOutletRequest = z.infer<typeof patchOutletRequestSchema>
 
-export const pairRequestSchema = z.object({
-    code: z.string(),
-    clientLabel: z.string(),
-    userId: z.string(),
-    email: z.string(),
-    displayName: z.string().optional(),
-})
-export type PairRequest = z.infer<typeof pairRequestSchema>
-
-export const pairResponseSchema = z.object({
-    clientToken: z.string(),
-    controllerId: z.string(),
-})
-export type PairResponse = z.infer<typeof pairResponseSchema>
-
 // Verified local pairing with CPace (ADR-0037, NEM-126). Bytes are base64url
 // without padding. The Pairing code itself never goes over the wire.
 
@@ -288,19 +273,21 @@ export const pairingCodeResponseSchema = z.object({
 })
 export type PairingCodeResponse = z.infer<typeof pairingCodeResponseSchema>
 
-export const clientTokenSchema = z.object({
+/** One Access Client of the Home. `id` is its Access Client ID. */
+export const accessClientSchema = z.object({
     id: z.string(),
     label: z.string(),
     createdAt: z.string(),
     lastSeenAt: z.string().nullable(),
     userId: z.string().nullable().optional(),
 })
-export type ClientToken = z.infer<typeof clientTokenSchema>
+export type AccessClient = z.infer<typeof accessClientSchema>
 
-export const tokensResponseSchema = z.object({
-    tokens: z.array(clientTokenSchema),
+/** `GET /api/access-clients`. */
+export const accessClientsResponseSchema = z.object({
+    accessClients: z.array(accessClientSchema),
 })
-export type TokensResponse = z.infer<typeof tokensResponseSchema>
+export type AccessClientsResponse = z.infer<typeof accessClientsResponseSchema>
 
 export const householdMemberSchema = z.object({
     id: z.string(),
@@ -322,19 +309,6 @@ export const inviteMemberRequestSchema = z.object({
     email: z.string().trim().min(1),
 })
 export type InviteMemberRequest = z.infer<typeof inviteMemberRequestSchema>
-
-export const bootstrapOwnerRequestSchema = z.object({
-    userId: z.string().trim().min(1),
-    email: z.string().trim().min(1),
-    displayName: z.string().optional(),
-})
-export type BootstrapOwnerRequest = z.infer<typeof bootstrapOwnerRequestSchema>
-
-export const sessionMintResultSchema = z.object({
-    clientToken: z.string(),
-    controllerId: z.string(),
-})
-export type SessionMintResult = z.infer<typeof sessionMintResultSchema>
 
 /** The caller's Membership role. Clients use it only to decide what to show. */
 export const sessionRoleSchema = z.enum(['owner', 'member'])
