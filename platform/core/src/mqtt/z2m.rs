@@ -54,6 +54,7 @@ pub enum IncomingTopic {
     BridgeState,
     BridgeDevices,
     BridgeEvent,
+    BridgeCommissioning,
     BridgeResponse { endpoint: String },
     DeviceState { friendly_name: String },
     DeviceAvailability { friendly_name: String },
@@ -76,6 +77,8 @@ pub fn parse_topic(base_topic: &str, topic: &str) -> IncomingTopic {
         "bridge/state" => IncomingTopic::BridgeState,
         "bridge/devices" => IncomingTopic::BridgeDevices,
         "bridge/event" => IncomingTopic::BridgeEvent,
+        // Progress in Protocol-neutral steps (NEM-110).
+        "bridge/commissioning" => IncomingTopic::BridgeCommissioning,
         _ if rest.starts_with("bridge/response/") => IncomingTopic::BridgeResponse {
             endpoint: rest.trim_start_matches("bridge/response/").to_string(),
         },
@@ -313,6 +316,10 @@ mod tests {
         assert_eq!(
             parse_topic(base, "zigbee2mqtt/Kitchen Light/set"),
             IncomingTopic::Ignored
+        );
+        assert_eq!(
+            parse_topic("matter", "matter/bridge/commissioning"),
+            IncomingTopic::BridgeCommissioning
         );
         assert_eq!(
             parse_topic(base, "zigbee2mqtt/bridge/response/device/rename"),

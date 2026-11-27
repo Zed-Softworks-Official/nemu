@@ -16,6 +16,7 @@ import {
     numericCapabilityValueSchema,
     observationEnvelopeSchemaVersionSchema,
 } from './capability.ts'
+import { commissioningProgressSchema } from './commissioning-progress.ts'
 import { deviceStateSchema } from './device.ts'
 
 const onlineSchema = z.enum(['online', 'offline'])
@@ -100,7 +101,7 @@ export const bridgeEventSchema = z.discriminatedUnion('type', [
             error: z.string().optional(),
         }),
     }),
-    /** A Device left the adapter's inventory; Core tombstones it (ADR-0017). */
+    /** A Device ID that is gone: removed (Core tombstones it, ADR-0017) or folded into a strip. */
     z.strictObject({
         type: z.literal('device_leave'),
         data: z.strictObject({ ieee_address: z.string() }),
@@ -112,6 +113,13 @@ export const bridgeEventSchema = z.discriminatedUnion('type', [
 ])
 export type BridgeEvent = z.infer<typeof bridgeEventSchema>
 
+/**
+ * Non-retained `bridge/commissioning`: progress in Protocol-neutral steps
+ * (`commissioning-progress.ts`). Added alongside `bridge/event`, whose
+ * `commission_progress` and `device_interview` events stay as they are, so a
+ * Core that ignores this topic still works.
+ */
+export const bridgeCommissioningSchema = commissioningProgressSchema
 /** The Device a Capability manifest or observation belongs to. */
 export const bridgeCapabilityDeviceSchema = z.strictObject({
     protocol: z.string().min(1),

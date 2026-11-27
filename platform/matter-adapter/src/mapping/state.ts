@@ -18,7 +18,16 @@ export function stateForDevice(
     device: EndpointDevice,
     snapshot: AttributeSnapshot
 ): DeviceState {
-    const state = stateForEndpoint(snapshot, device.endpoint)
+    // A strip nests each outlet's state, with its Component ID and name.
+    const state: Record<string, unknown> = device.outlets
+        ? {
+              outlets: device.outlets.map((outlet) => ({
+                  ...stateForEndpoint(snapshot, outlet.endpoint),
+                  id: String(outlet.endpoint),
+                  name: outlet.name,
+              })),
+          }
+        : stateForEndpoint(snapshot, device.endpoint)
     if (device.energyEndpoint !== undefined)
         Object.assign(state, stateForEndpoint(snapshot, device.energyEndpoint))
     return state

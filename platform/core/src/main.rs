@@ -14,6 +14,7 @@ mod audit;
 pub mod capabilities;
 mod commands;
 mod commissioning;
+mod commissioning_progress;
 mod config;
 mod crypto;
 mod db;

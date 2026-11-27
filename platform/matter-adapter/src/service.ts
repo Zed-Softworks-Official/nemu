@@ -12,15 +12,19 @@
  * (ADR-0013). Every store is written atomically, so the paused data directory
  * is a consistent copy.
  */
-import type { DeviceState } from '@nemu/protocol'
+import type { CommissioningStep, DeviceState } from '@nemu/protocol'
 import type { NodeId } from './attributes.ts'
 import {
+    CommissionFailure,
     commissionDevice,
+    type FailedStep,
     type ProgressStage,
     redact,
+    stepOf,
 } from './commissioning.ts'
 import type { Log } from './log.ts'
 import {
+    collapsedLegacyIds,
     commandsForSet,
     deviceDescriptor,
     type EndpointDevice,
@@ -67,6 +71,10 @@ export class Service {
     /** Nodes being removed: their reports and reachability are ignored. */
     #removed = new Set<NodeId>()
     #commissioning: AbortController | undefined
+    /** The last step the commissioning in progress reached. */
+    #reached: CommissioningStep = 'discovering'
+    /** Legacy Device IDs already announced as gone. */
+    #leaves = new Set<string>()
 
     constructor(
         private readonly session: MatterSession,
@@ -148,6 +156,7 @@ export class Service {
         this.#commissioning = attempt
         // Acknowledge first: commissioning takes seconds, and over BLE 20–40 s.
         await this.bus.respond('commission', transaction, { status: 'ok' })
+        this.#reached = 'discovering'
         await this.#progress('looking', 'Looking for your device')
         void this.#runCommission(code, wifi, attempt)
     }
@@ -171,7 +180,8 @@ export class Service {
             await this.publishInventory()
             if (![...this.#devices.values()].some((d) => d.nodeId === nodeId)) {
                 await this.#interviewFailed(
-                    'The device connected but did not appear on the controller.'
+                    'The device connected but did not appear on the controller.',
+                    { step: 'setting_up', reason: 'unknown' }
                 )
                 return
             }
@@ -186,13 +196,22 @@ export class Service {
             this.log.warn(
                 `commissioning failed: ${redact(message, { code, wifi })}`
             )
-            await this.#interviewFailed(message)
+            await this.#interviewFailed(
+                message,
+                error instanceof CommissionFailure
+                    ? error.failed
+                    : { step: this.#reached, reason: 'unknown' }
+            )
         } finally {
             if (this.#commissioning === attempt) this.#commissioning = undefined
         }
     }
 
-    /** The Rust adapter's `publish_progress`: both events, in this order. */
+    /**
+     * The Rust adapter's `publish_progress`: both events, in this order. Then
+     * the stage's Protocol-neutral step on `bridge/commissioning`, which
+     * carries only the step.
+     */
     async #progress(stage: ProgressStage, message: string): Promise<void> {
         await this.bus.event({
             type: 'commission_progress',
@@ -202,9 +221,20 @@ export class Service {
             type: 'device_interview',
             data: { ieee_address: 'commissioning', status: 'started', message },
         })
+        const step = stepOf(stage)
+        if (step) this.#reached = step
+        await this.bus.commissioning(
+            step ? { status: 'active', step } : { status: 'completed' }
+        )
     }
 
-    async #interviewFailed(error: string): Promise<void> {
+    /**
+     * The failed step on `bridge/commissioning`, then the Rust adapter's
+     * failed interview with its Owner-facing message. The step goes first so
+     * an Access Client has it when the failure ends its pairing view.
+     */
+    async #interviewFailed(error: string, failed: FailedStep): Promise<void> {
+        await this.bus.commissioning({ status: 'failed', ...failed })
         await this.bus.event({
             type: 'device_interview',
             data: { ieee_address: 'commissioning', status: 'failed', error },
@@ -283,7 +313,12 @@ export class Service {
                 await this.bus.clearRetained(topic)
             this.meters.forget(id)
         }
-        this.names.retainOnly(new Set(this.#devices.keys()))
+        // Keep the names of the remaining Devices and their strip outlets.
+        const keep = new Set(this.#devices.keys())
+        for (const device of this.#devices.values())
+            for (const outlet of device.outlets ?? [])
+                keep.add(outletKey(device.nodeId, outlet.endpoint))
+        this.names.retainOnly(keep)
         await this.publishInventory()
     }
 
@@ -336,9 +371,12 @@ export class Service {
         const { actions, ignored } = commandsForSet(payload)
         if (ignored.length > 0)
             this.log.info(`ignored set keys: ${ignored.join(', ')}`)
-        try {
-            for (const endpoint of targetEndpoints(device, payload)) {
-                for (const action of actions) {
+        // Keep going after a failure, so one outlet of a strip does not stop
+        // the others, and report the first one.
+        let failure: { error: unknown } | undefined
+        for (const endpoint of targetEndpoints(device, payload)) {
+            for (const action of actions) {
+                try {
                     await this.session.invoke(
                         device.nodeId,
                         endpoint,
@@ -346,9 +384,13 @@ export class Service {
                         action.command,
                         action.fields
                     )
+                } catch (error) {
+                    failure ??= { error }
                 }
             }
-        } catch (error) {
+        }
+        if (failure) {
+            const { error } = failure
             this.log.warn(`set on ${deviceId} failed: ${String(error)}`)
             await this.bus.event({
                 type: 'command_failed',
@@ -465,8 +507,23 @@ export class Service {
         }
         const snapshot = this.session.snapshot(nodeId)
         if (!snapshot) return
-        for (const device of mapNodeOrPlaceholder(nodeId, snapshot))
+        for (const device of mapNodeOrPlaceholder(nodeId, snapshot)) {
+            // A strip outlet's name is stored as `{nodeId}#{endpoint}`, as in Rust.
+            for (const outlet of device.outlets ?? []) {
+                const name = this.names.get(outletKey(nodeId, outlet.endpoint))
+                if (name) outlet.name = name
+            }
             this.#devices.set(device.id, device)
+        }
+        // Per-endpoint IDs a strip folded in leave, once each, as in Rust.
+        for (const id of collapsedLegacyIds(nodeId, snapshot)) {
+            if (this.#leaves.has(id)) continue
+            this.#leaves.add(id)
+            void this.bus.event({
+                type: 'device_leave',
+                data: { ieee_address: id },
+            })
+        }
     }
 }
 
@@ -478,4 +535,9 @@ function wifiOf(payload: Payload): WifiCredentials | undefined {
     const password =
         typeof payload.wifiPassword === 'string' ? payload.wifiPassword : ''
     return { ssid, password }
+}
+
+/** The name-store key of a strip outlet, the Rust adapter's `{nodeId}#{endpoint}`. */
+function outletKey(nodeId: NodeId, endpoint: number): string {
+    return `${nodeId}#${endpoint}`
 }

@@ -146,6 +146,10 @@ const stages = (transport: FakeTransport) =>
         .filter((event) => event.type === 'commission_progress')
         .map((event) => event.data.stage)
 
+/** Every `bridge/commissioning` payload, in order. */
+const steps = (transport: FakeTransport) =>
+    transport.on('matter/bridge/commissioning')
+
 /** A Log that keeps every line, to check what reaches the logs. */
 function capturedLog(): Log & { lines: string[] } {
     const lines: string[] = []
@@ -483,6 +487,183 @@ describe('Service', () => {
                 'hunter2-secret',
             ])
                 assert.ok(!output.includes(secret), `${secret} in: ${output}`)
+        })
+    })
+
+    describe('commissioning progress in Protocol-neutral steps', () => {
+        it('publishes each step it reaches, then completed', async () => {
+            const { transport } = await commission(new FakeSession(), {})
+            assert.deepEqual(steps(transport), [
+                { status: 'active', step: 'discovering' },
+                { status: 'active', step: 'connecting' },
+                { status: 'active', step: 'joining_network' },
+                { status: 'active', step: 'setting_up' },
+                { status: 'completed' },
+            ])
+            assert.ok(
+                transport.published
+                    .filter((m) => m.topic === 'matter/bridge/commissioning')
+                    .every((m) => !m.retain)
+            )
+        })
+
+        it('reports configuring the network when it sends Wi-Fi over BLE', async () => {
+            const { transport } = await commission(new FakeSession(), WIFI)
+            assert.deepEqual(
+                steps(transport).map((p) => (p as { step?: string }).step),
+                [
+                    'discovering',
+                    'connecting',
+                    'configuring_network',
+                    'joining_network',
+                    'setting_up',
+                    undefined,
+                ]
+            )
+        })
+
+        it('names verifying as the failed step when attestation fails, before the failed interview', async () => {
+            const session = new FakeSession()
+            session.failBle = new Error(
+                'device attestation failed: PaaNotTrusted: unknown root'
+            )
+            const { transport } = await commission(session, WIFI)
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'verifying',
+                reason: 'not_verified',
+            })
+            const order = transport.published
+                .filter(
+                    (m) =>
+                        m.topic === 'matter/bridge/commissioning' ||
+                        m.topic === 'matter/bridge/event'
+                )
+                .map(
+                    (m) =>
+                        m.payload as {
+                            status?: string
+                            data?: { status?: string }
+                        }
+                )
+                .filter(
+                    (p) => p.status === 'failed' || p.data?.status === 'failed'
+                )
+            assert.equal(order.length, 2)
+            assert.equal(order[0]?.status, 'failed')
+            assert.equal(order[1]?.data?.status, 'failed')
+        })
+
+        it('names the network step when the Device cannot join the Wi-Fi', async () => {
+            const session = new FakeSession()
+            session.failBle = new Error('Wi-Fi association failed: auth')
+            session.failNetwork = new Error('not discovered')
+            const { transport } = await commission(session, WIFI)
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'configuring_network',
+                reason: 'network_rejected',
+            })
+        })
+
+        it('names discovering when no Device is found', async () => {
+            const session = new FakeSession()
+            session.failNetwork = new Error('not discovered')
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'discovering',
+                reason: 'unreachable',
+            })
+        })
+
+        it('names the step reached when the error names none', async () => {
+            const session = new FakeSession()
+            session.failNetwork = new Error('something odd')
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), {
+                status: 'failed',
+                step: 'connecting',
+                reason: 'unreachable',
+            })
+        })
+
+        it('completes when the Device maps to nothing, as a placeholder', async () => {
+            // A node that joined the fabric always appears (NEM-119), as with
+            // the Rust adapter's ensure_node_in_index.
+            const session = new FakeSession()
+            session.joining = { '0/40/3': 'Bridge' }
+            const { transport } = await commission(session, {})
+            assert.deepEqual(steps(transport).at(-1), { status: 'completed' })
+        })
+
+        it('publishes no failure when the Owner cancels', async () => {
+            const session = new FakeSession()
+            let release: () => void = () => {}
+            session.commission = async (request) => {
+                await new Promise<void>((resolve) => {
+                    release = resolve
+                })
+                if (request.signal?.aborted) throw new Error('aborted')
+                return '1'
+            }
+            const { transport } = await commission(session, {})
+            await transport.deliver(
+                'matter/bridge/request/commission/cancel',
+                JSON.stringify({ transaction: 't2' })
+            )
+            release()
+            await settle()
+            assert.ok(
+                steps(transport).every(
+                    (p) => (p as { status: string }).status === 'active'
+                ),
+                JSON.stringify(steps(transport))
+            )
+        })
+
+        it('never carries the pairing code, passcode or Wi-Fi credentials', async () => {
+            const code = '3497-011-2332'
+            const secrets = [code, CODE, '20202021', 'Home', 'hunter2-secret']
+            for (const failures of [
+                {
+                    ble: `PASE failed for ${CODE} (passcode 20202021) on Home with hunter2-secret`,
+                    network: `${code} not discovered`,
+                },
+                {
+                    ble: `Wi-Fi Home rejected hunter2-secret`,
+                    network: `timed out after ${CODE}`,
+                },
+                {
+                    ble: `attestation failed for ${CODE} on Home/hunter2-secret`,
+                    network: '',
+                },
+            ]) {
+                const session = new FakeSession()
+                session.failBle = new Error(failures.ble)
+                if (failures.network)
+                    session.failNetwork = new Error(failures.network)
+                const { transport } = await commission(session, {
+                    ...WIFI,
+                    code,
+                })
+                const published = steps(transport)
+                assert.ok(published.length > 0)
+                for (const payload of published) {
+                    assert.deepEqual(
+                        Object.keys(payload as object).filter(
+                            (key) => !['status', 'step', 'reason'].includes(key)
+                        ),
+                        []
+                    )
+                    const text = JSON.stringify(payload)
+                    for (const secret of secrets)
+                        assert.ok(
+                            !text.includes(secret),
+                            `${secret} in ${text}`
+                        )
+                }
+            }
         })
     })
 })
@@ -887,5 +1068,134 @@ describe('Service lifecycle', () => {
             [['1', 'Harness Plug']]
         )
         assert.deepEqual(transport.on('matter/1').at(-1), { state: 'OFF' })
+    })
+})
+
+const STRIP: AttributeSnapshot = {
+    '0/40/1': 'Nemu Harness',
+    '0/40/3': 'Harness Strip',
+    '0/29/0': [{ deviceType: 22, revision: 1 }],
+    '1/29/0': [{ deviceType: 266, revision: 1 }],
+    '1/6/0': false,
+    '2/29/0': [{ deviceType: 266, revision: 1 }],
+    '2/6/0': false,
+}
+
+/** Fails every invoke on endpoint 1, as an outlet that stopped answering. */
+class FirstOutletFails extends FakeSession {
+    override async invoke(...args: unknown[]) {
+        this.invoked.push(args)
+        if (args[1] === 1) throw new Error('outlet 1 timed out')
+    }
+}
+
+async function commissionedStrip(session = new FakeSession()) {
+    session.joining = STRIP
+    const harness = await started(session)
+    await harness.transport.deliver(
+        'matter/bridge/request/commission',
+        JSON.stringify({ code: '34970112332', transaction: 't1' })
+    )
+    await settle()
+    return harness
+}
+
+describe('Service with a strip', () => {
+    it('publishes one Device with each outlet in its state', async () => {
+        const { transport } = await commissionedStrip()
+        const devices = transport.on('matter/bridge/devices').at(-1) as {
+            external_id: string
+            type: string
+        }[]
+        assert.deepEqual(
+            devices.map((device) => [device.external_id, device.type]),
+            [['1', 'strip']]
+        )
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            outlets: [
+                { id: '1', name: 'Outlet 1', state: 'OFF' },
+                { id: '2', name: 'Outlet 2', state: 'OFF' },
+            ],
+        })
+    })
+
+    it('announces the folded per-endpoint IDs as gone, once each', async () => {
+        const { transport } = await commissionedStrip()
+        await transport.deliver(
+            'matter/bridge/request/commission',
+            JSON.stringify({ code: '34970112332', transaction: 't2' })
+        )
+        await settle()
+        assert.deepEqual(
+            events(transport)
+                .filter((event) => event.type === 'device_leave')
+                .map((event) => event.data.ieee_address),
+            ['1:1', '1:2', '2:1', '2:2']
+        )
+    })
+
+    it('sets only the named outlet, and confirms it from the report', async () => {
+        const { session, transport } = await commissionedStrip()
+        await transport.deliver(
+            'matter/1/set',
+            JSON.stringify({ state: 'ON', outlet: '2', transaction: 'c1' })
+        )
+        await settle()
+        assert.deepEqual(
+            session.invoked.map((args) => args.slice(0, 4)),
+            [['1', 2, 6, 0x01]]
+        )
+        session.report('1', { '2/6/0': true })
+        await settle()
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            outlets: [
+                { id: '1', name: 'Outlet 1', state: 'OFF' },
+                { id: '2', name: 'Outlet 2', state: 'ON' },
+            ],
+        })
+    })
+
+    it('sets every outlet without one, past a failing outlet', async () => {
+        const { session, transport } = await commissionedStrip(
+            new FirstOutletFails()
+        )
+        await transport.deliver(
+            'matter/1/set',
+            JSON.stringify({ state: 'OFF', transaction: 'c2' })
+        )
+        await settle()
+        assert.deepEqual(
+            session.invoked.map((args) => args.slice(0, 4)),
+            [
+                ['1', 1, 6, 0x00],
+                ['1', 2, 6, 0x00],
+            ]
+        )
+        assert.deepEqual(
+            events(transport)
+                .filter((event) => event.type === 'command_failed')
+                .map((event) => event.data),
+            [
+                {
+                    ieee_address: '1',
+                    transaction: 'c2',
+                    error: 'outlet 1 timed out',
+                },
+            ]
+        )
+    })
+
+    it('names an outlet from the name store, as the Rust adapter keys it', async () => {
+        const session = new FakeSession()
+        session.nodes.set('1', { ...STRIP })
+        const names = new MemoryNames()
+        names.set('1#2', 'Kettle')
+        const { transport } = await started(session, quiet, names)
+        assert.deepEqual(transport.on('matter/1').at(-1), {
+            outlets: [
+                { id: '1', name: 'Outlet 1', state: 'OFF' },
+                { id: '2', name: 'Kettle', state: 'OFF' },
+            ],
+        })
     })
 })

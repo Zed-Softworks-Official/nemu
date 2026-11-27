@@ -5,7 +5,7 @@
  * Ported from the Rust adapter's `placeholder_device`.
  */
 import type { AttributeSnapshot, NodeId } from '../attributes.ts'
-import { type EndpointDevice, mapNode } from './node.ts'
+import { type EndpointDevice, mapNodeWithFallback } from './node.ts'
 
 export function placeholderDevice(nodeId: NodeId): EndpointDevice {
     return {
@@ -26,11 +26,11 @@ export function isPlaceholder(device: EndpointDevice): boolean {
     )
 }
 
-/** The node's Devices, or its placeholder when none map. */
+/** The node's Devices (with the Rust fallback), or its placeholder when none map. */
 export function mapNodeOrPlaceholder(
     nodeId: NodeId,
     snapshot: AttributeSnapshot
 ): EndpointDevice[] {
-    const devices = mapNode(nodeId, snapshot)
+    const devices = mapNodeWithFallback(nodeId, snapshot)
     return devices.length > 0 ? devices : [placeholderDevice(nodeId)]
 }

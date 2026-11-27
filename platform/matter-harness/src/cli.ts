@@ -88,11 +88,17 @@ async function main(): Promise<number> {
                 join(runDir, 'light'),
                 join(runDir, 'light.log')
             ),
+            strip: new SimulatedDevice(
+                'strip',
+                join(runDir, 'strip'),
+                join(runDir, 'strip.log')
+            ),
         }
-        for (const device of Object.values(devices)) {
+        // The strip starts in its own step, so earlier steps see no change.
+        for (const device of [devices.plug, devices.light]) {
             await device.start()
-            cleanup.push(device)
         }
+        for (const device of Object.values(devices)) cleanup.push(device)
 
         const dataDir = join(runDir, 'adapter')
         await mkdir(dataDir, { recursive: true })
