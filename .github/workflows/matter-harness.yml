@@ -132,9 +132,8 @@ jobs:
           TMPDIR: ${{ runner.temp }}/matter-harness
           MATTER_HARNESS_ADAPTER_CMD: node ${{ github.workspace }}/platform/matter-adapter/dist/main.js
           # NEM-115: commission, on/off and health check.
-          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,plug-on,plug-off,health-check,commission-without-code
-          # NEM-118 adds Capabilities and observations.
-          MATTER_HARNESS_IGNORE_TOPICS: capabilities,observations
+          # NEM-118: Capabilities, observations and assigned Capability IDs.
+          MATTER_HARNESS_STEPS: adapter-starts,commission-plug,assign-plug-capability-ids,plug-on,plug-off,plug-load-changes,health-check,commission-without-code
         run: |
           mkdir -p "$TMPDIR"
           pnpm --filter @nemu/matter-harness harness

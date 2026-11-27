@@ -2,6 +2,7 @@
 import { configFromEnv } from './config.ts'
 import { consoleLog } from './log.ts'
 import { createMatterSession } from './matter/session.ts'
+import { Meters } from './meters/index.ts'
 import { MqttBus } from './mqtt/bus.ts'
 import { connectMqtt } from './mqtt/client.ts'
 import { Service } from './service.ts'
@@ -20,7 +21,7 @@ await session.start()
 
 const mqtt = connectMqtt(config, log)
 const bus = new MqttBus(mqtt, config.mqttBaseTopic, log)
-const service = new Service(session, bus, log)
+const service = new Service(session, bus, log, Meters.load(config.dataDir, log))
 let started = false
 mqtt.onConnect(async () => {
     await bus.bridgeState('online')

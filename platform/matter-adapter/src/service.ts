@@ -18,6 +18,7 @@ import {
     targetEndpoints,
 } from './mapping/index.ts'
 import type { AttributeChanges, MatterSession } from './matter/session.ts'
+import { isMeterAttribute, Meters } from './meters/index.ts'
 import type { MqttBus } from './mqtt/bus.ts'
 import { type Incoming, type Payload, transactionOf } from './mqtt/topics.ts'
 
@@ -33,7 +34,8 @@ export class Service {
     constructor(
         private readonly session: MatterSession,
         private readonly bus: MqttBus,
-        private readonly log: Log
+        private readonly log: Log,
+        private readonly meters: Meters = new Meters()
     ) {
         bus.onRequest((incoming) => this.#handle(incoming))
         session.onAttributes((nodeId, changes) =>
@@ -59,6 +61,7 @@ export class Service {
         await this.bus.devices(descriptors)
         for (const device of this.#devices.values()) {
             await this.#publishState(device, true)
+            await this.#publishMeter(device, false)
             // TODO(NEM-119): offline when the node is unreachable, online when it recovers.
             await this.bus.availability(device.id, 'online')
         }
@@ -72,10 +75,13 @@ export class Service {
                 return this.#cancel(incoming.payload)
             case 'set':
                 return this.#set(incoming.deviceId, incoming.payload)
+            case 'capabilityIds':
+                return this.#capabilityIds(incoming.deviceId, incoming.payload)
             case 'rename':
             case 'remove':
-            case 'capabilityIds':
-                // TODO(NEM-118, NEM-119): Capability IDs, rename and remove.
+                // TODO(NEM-119): rename and remove. Remove also clears
+                // `{id}/capabilities` and `{id}/observations`
+                // (`bus.clearRetained`) and calls `meters.forget(id)`.
                 this.log.info(`${incoming.kind} is not handled yet`)
                 return
             case 'health':
@@ -186,11 +192,52 @@ export class Service {
 
     async #onAttributes(
         nodeId: NodeId,
-        _changes: AttributeChanges
+        changes: AttributeChanges
     ): Promise<void> {
-        for (const device of this.#devices.values()) {
-            if (device.nodeId === nodeId)
-                await this.#publishState(device, false)
+        const freshMeter = Object.keys(changes).some(isMeterAttribute)
+        for (const device of [...this.#devices.values()]) {
+            if (device.nodeId !== nodeId) continue
+            // A meter report republishes the unchanged state too, as Rust's
+            // `publish_state` does (golden plug-load-changes).
+            await this.#publishState(device, freshMeter)
+            await this.#publishMeter(device, freshMeter)
+        }
+    }
+
+    /**
+     * Stores the Capability IDs Core assigned. Like the Rust adapter, they are
+     * stamped from the next fresh reading on: the unchanged envelope is not
+     * republished (golden quirk 4). The Device state is, as in Rust.
+     */
+    async #capabilityIds(deviceId: string, payload: Payload): Promise<void> {
+        if (!this.meters.assign(deviceId, payload)) return
+        const device = this.#devices.get(deviceId)
+        if (!device) return
+        await this.#publishState(device, true)
+        await this.#publishMeter(device, false)
+    }
+
+    async #publishMeter(device: EndpointDevice, fresh: boolean): Promise<void> {
+        const snapshot = this.session.snapshot(device.nodeId)
+        if (!snapshot) return
+        const update = this.meters.update(device, snapshot, fresh)
+        switch (update.kind) {
+            case 'publish':
+                await this.bus.capabilities(device.id, update.manifest)
+                await this.bus.observations(device.id, update.report)
+                return
+            case 'manifest':
+                this.log.warn(
+                    `skipped a meter observation for ${device.id}: the clock is unavailable`
+                )
+                await this.bus.capabilities(device.id, update.manifest)
+                return
+            case 'clear':
+                await this.bus.clearRetained(`${device.id}/capabilities`)
+                await this.bus.clearRetained(`${device.id}/observations`)
+                return
+            case 'none':
+                return
         }
     }
 
