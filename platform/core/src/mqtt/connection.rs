@@ -610,6 +610,13 @@ async fn handle_publish(
             Ok(())
         }
         IncomingTopic::BridgeEvent => handle_bridge_event(state, protocol, payload).await,
+        IncomingTopic::BridgeCommissioning => {
+            // Strict: a payload with anything but the step is dropped, so
+            // nothing else can reach the Access Clients or the Relay.
+            let progress = crate::commissioning_progress::parse_commissioning_progress(payload)?;
+            state.emit(DeviceEvent::CommissioningStep(progress));
+            Ok(())
+        }
         IncomingTopic::DeviceState { friendly_name } => {
             handle_device_state(
                 state,

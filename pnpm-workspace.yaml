@@ -12,6 +12,12 @@ allowBuilds:
   sharp: true
   utf-8-validate: true
   "@parcel/watcher": false
+  # BLE (@matter/nodejs-ble): each ships prebuilds that node-gyp-build loads at runtime.
+  "@serialport/bindings-cpp": false
+  "@stoprocent/bleno": false
+  "@stoprocent/bluetooth-hci-socket": false
+  "@stoprocent/noble": false
+  usb: false
 
 catalog:
   zod: ^4.3.6

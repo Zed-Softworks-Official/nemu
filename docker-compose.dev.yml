@@ -17,13 +17,16 @@ services:
     depends_on:
       - mosquitto
 
-  # Native Matter controller. Host network is required for mDNS/IPv6 and BlueZ.
-  # Mosquitto is published on 127.0.0.1:1883 for this host-net client.
+  # The matter.js Matter adapter (ADR-0036). Host network is required for
+  # mDNS/IPv6 and Bluetooth. Mosquitto is published on 127.0.0.1:1883 for this
+  # host-net client.
   # Opt-in: `pnpm infra:full` (or `docker compose --profile matter up`).
   nemu-matter:
     profiles: [matter]
     build:
-      context: ./platform/matter
+      # The repo root: the adapter uses the workspace package @nemu/protocol.
+      context: .
+      dockerfile: platform/matter-adapter/Dockerfile
     network_mode: host
     environment:
       MQTT_HOST: 127.0.0.1
@@ -32,6 +35,9 @@ services:
       MATTER_DATA_DIR: /data
       MATTER_PAA_DIR: /data/paa-roots
       MATTER_CD_DIR: /data/cd-roots
+      # TODO(NEM-113): matter.js drives Bluetooth over HCI, not BlueZ over
+      # D-Bus. Drop DBUS_SYSTEM_BUS_ADDRESS and the /run/dbus mount once the
+      # hardware spike confirms direct HCI in the container.
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
     security_opt:
       - apparmor:unconfined

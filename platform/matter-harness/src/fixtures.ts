@@ -1,6 +1,6 @@
 /** Fixed identities and readings for the simulated Devices, so every run is the same. */
 
-export type DeviceKind = 'plug' | 'light'
+export type DeviceKind = 'plug' | 'light' | 'strip'
 
 export interface PowerReading {
     /** Electrical Power Measurement ActivePower, mW. */
@@ -84,7 +84,20 @@ export const DEVICE_FIXTURES: Record<DeviceKind, DeviceFixture> = {
             maxMireds: 400,
         },
     },
+    strip: {
+        productName: 'Harness Strip',
+        productId: 0x8003,
+        deviceType: 0x010a,
+        port: 5643,
+        discriminator: 2816,
+        passcode: 20202024,
+        power: NO_POWER,
+        light: NO_LIGHT,
+    },
 }
+
+/** The strip's outlets, each an On/Off Plug-in Unit endpoint (1, 2, ...). */
+export const STRIP_OUTLETS = 2
 
 /** The plug's second load, sent mid-run to produce a fresh observation. */
 export const SECOND_LOAD: PowerReading = {

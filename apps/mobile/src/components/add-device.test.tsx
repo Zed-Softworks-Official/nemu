@@ -414,6 +414,80 @@ describe('Adding a Device while the connection changes', () => {
         await screen.findByRole('button', { name: 'Cancel' })
     })
 
+    it('shows each commissioning step over LAN, and none over Relay until NEM-63', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await commissioningMatter(controller)
+        await act(async () =>
+            controller.commissioningStep({
+                status: 'active',
+                step: 'discovering',
+            })
+        )
+        await screen.findByText('Looking for your Device')
+
+        await act(async () =>
+            controller.commissioningStep({
+                status: 'active',
+                step: 'connecting',
+            })
+        )
+        await screen.findByText('Connecting securely')
+        expect(screen.getByLabelText('Commissioning steps')).toBeTruthy()
+        expect(screen.getByText('✓ Looking for your Device')).toBeTruthy()
+        expect(screen.getByText('○ Joining your Home')).toBeTruthy()
+
+        // Progress goes over the LAN WebSocket only (Relay pushes come back
+        // encrypted in NEM-63), so a step reached over Relay never shows.
+        controller.lanReachable = false
+        await act(() => reprobe())
+        await screen.findByText('Connected over relay')
+        await act(async () =>
+            controller.commissioningStep({
+                status: 'active',
+                step: 'configuring_network',
+            })
+        )
+        expect(screen.queryByText('Sending your Wi‑Fi details')).toBeNull()
+        expect(screen.getByText('Connecting securely')).toBeTruthy()
+    })
+
+    it('names the step that failed, with guidance, over LAN', async () => {
+        const controller = home(true)
+        await renderDevicesTab(controller)
+        await commissioningMatter(controller)
+
+        await act(async () => {
+            controller.commissioningStep({
+                status: 'failed',
+                step: 'configuring_network',
+                reason: 'network_rejected',
+            })
+            // The older failed interview follows; it changes nothing.
+            controller.emit({
+                type: 'interview',
+                externalId: 'commissioning',
+                status: 'failed',
+                error: 'Put the device back in pairing mode and try again.',
+            })
+        })
+
+        await screen.findByText('The Device wasn’t added')
+        expect(
+            screen.getByText('The Device couldn’t get on your Wi‑Fi.')
+        ).toBeTruthy()
+        expect(
+            screen.getByText(
+                'Check your Wi‑Fi name and password, and use a 2.4 GHz network, not 5 GHz.'
+            )
+        ).toBeTruthy()
+        expect(
+            screen.queryByText(
+                'Put the device back in pairing mode and try again.'
+            )
+        ).toBeNull()
+    })
+
     it.each([
         ['LAN', true],
         ['Relay', false],

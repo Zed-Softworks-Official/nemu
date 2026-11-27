@@ -7,7 +7,8 @@
         "check-types": "tsc --noEmit",
         "test": "tsc -p tsconfig.build.json && node --test dist/*.test.js",
         "harness": "tsc -p tsconfig.build.json && node dist/cli.js",
-        "harness:record": "tsc -p tsconfig.build.json && node dist/cli.js --record"
+        "harness:record": "tsc -p tsconfig.build.json && node dist/cli.js --record",
+        "harness:lifecycle": "tsc -p tsconfig.build.json && node dist/lifecycle.js"
     },
     "dependencies": {
         "@matter/main": "0.18.0",

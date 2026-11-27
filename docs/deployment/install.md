@@ -76,7 +76,9 @@ Before anything from a Release runs, the installer downloads the channel manifes
 
 Matter-over-Wi-Fi support is on by default and needs no extra hardware: the
 `nemu-matter` service runs host-networked (Matter requires mDNS and IPv6),
-and new devices are commissioned over the host's Bluetooth adapter via BlueZ.
+and new devices are commissioned over the host's Bluetooth adapter. The
+adapter is built on matter.js, which drives Bluetooth directly over HCI
+([container requirements](matter-ble.md), not yet verified on hardware).
 The installer installs and enables BlueZ when the Bluetooth service is not
 already active, and warns if it still cannot start (or if IPv6 is disabled).
 `nemu-matter` runs as uid 1000; the installer chowns `/opt/nemu/volumes/matter`

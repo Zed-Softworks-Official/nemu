@@ -6,6 +6,7 @@ import {
     type AssignRoomRequest,
     type CapabilityView,
     type CommandResult,
+    type CommissioningProgress,
     type CommissionRequest,
     type CommissionResponse,
     type ConnectionStatus,
@@ -48,6 +49,10 @@ import {
     useState,
 } from 'react'
 import type { AccessClientKeyStore } from './access-client-keys.ts'
+import {
+    commissioningFailedStepLabel,
+    commissioningFailureGuidance,
+} from './commissioning-progress.ts'
 import {
     ControllerConnection,
     type ControllerConnectors,
@@ -597,6 +602,11 @@ export function useDevicePairing(): {
     error: Error | null
     secondsRemaining: number
     commissionProgress: CommissionProgress | null
+    /**
+     * The Protocol-neutral step commissioning has reached, or the step that
+     * failed. Arrives over LAN only until NEM-63 encrypts Relay pushes.
+     */
+    commissioningStep: CommissioningProgress | null
     /** Connected over Relay, which never carries a Matter pairing code. */
     matterNeedsHomeNetwork: boolean
     /** `null` until it is read, which needs the Home network. */
@@ -636,6 +646,8 @@ export function useDevicePairing(): {
     const [secondsRemaining, setSecondsRemaining] = useState(0)
     const [commissionProgress, setCommissionProgress] =
         useState<CommissionProgress | null>(null)
+    const [commissioningStep, setCommissioningStep] =
+        useState<CommissioningProgress | null>(null)
     const [savedWifi, setSavedWifi] = useState<MatterWifiResponse | null>(null)
     const lastMatterRequest = useRef<CommissionRequest | null>(null)
     const knownDeviceIds = useRef(new Set<string>())
@@ -645,6 +657,12 @@ export function useDevicePairing(): {
     discoveredDevicesRef.current = discoveredDevices
     const commissionProgressRef = useRef(commissionProgress)
     commissionProgressRef.current = commissionProgress
+    const commissioningStepRef = useRef(commissioningStep)
+    commissioningStepRef.current = commissioningStep
+    /** Whether the Controller has said the Device is commissioned. */
+    const commissionConnected = () =>
+        commissionProgressRef.current?.stage === 'connected' ||
+        commissioningStepRef.current?.status === 'completed'
     const pairingAttemptRef = useRef(0)
 
     const beginPairingAttempt = () => {
@@ -681,8 +699,7 @@ export function useDevicePairing(): {
         try {
             const devices = await getDevices()
             const known = knownDeviceIds.current
-            const connected =
-                commissionProgressRef.current?.stage === 'connected'
+            const connected = commissionConnected()
             const candidates = devices.filter((device) =>
                 isMatterJoinCandidate(device, known, connected)
             )
@@ -737,6 +754,32 @@ export function useDevicePairing(): {
                 }
             }
 
+            if (event.type === 'commissioningStep') {
+                const { type: _type, ...progress } = event
+                commissioningStepRef.current = progress
+                setCommissioningStep(progress)
+                if (protocol === 'matter' && progress.status === 'completed') {
+                    setExpiresAt(Date.now() + MATTER_CONNECTED_WAIT_MS)
+                    void absorbMatterJoins()
+                }
+                // A failed step ends the pairing view on its own, without
+                // waiting for the older failed interview. It arrives over LAN
+                // only until NEM-63.
+                if (
+                    progress.status === 'failed' &&
+                    discoveredDevicesRef.current.length === 0
+                ) {
+                    setError(
+                        new Error(
+                            `${commissioningFailedStepLabel(progress.step)} ${commissioningFailureGuidance(progress.reason)}`
+                        )
+                    )
+                    void stopPairingRadiosRef.current()
+                    setPhase('error')
+                    setExpiresAt(null)
+                }
+            }
+
             if (event.type === 'interview') {
                 setInterviews((current) => {
                     const next = current.filter(
@@ -755,8 +798,15 @@ export function useDevicePairing(): {
                 if (event.status === 'failed') {
                     const alreadyJoined =
                         discoveredDevicesRef.current.length > 0 ||
-                        commissionProgressRef.current?.stage === 'connected'
+                        commissionConnected()
                     if (event.externalId === 'commissioning' && alreadyJoined) {
+                        return
+                    }
+                    // The failed step came first and says more.
+                    if (
+                        event.externalId === 'commissioning' &&
+                        commissioningStepRef.current?.status === 'failed'
+                    ) {
                         return
                     }
                     setError(
@@ -873,9 +923,7 @@ export function useDevicePairing(): {
                         if (joined.length > 0) return
                         if (phaseRef.current !== 'discovering') return
                         if (discoveredDevicesRef.current.length > 0) return
-                        if (
-                            commissionProgressRef.current?.stage === 'connected'
-                        ) {
+                        if (commissionConnected()) {
                             void stopPairingRadios()
                             setError(
                                 new Error(
@@ -930,6 +978,7 @@ export function useDevicePairing(): {
         setExpiresAt(null)
         setSecondsRemaining(0)
         setCommissionProgress(null)
+        setCommissioningStep(null)
         lastMatterRequest.current = null
         knownDeviceIds.current = new Set()
     }, [stopPairingRadios])
@@ -1020,6 +1069,7 @@ export function useDevicePairing(): {
                 stage: 'looking',
                 message: 'Looking for your device',
             })
+            setCommissioningStep(null)
             setExpiresAt(Date.now() + MATTER_CONNECT_MS)
             setSecondsRemaining(MATTER_CONNECT_MS / 1000)
 
@@ -1112,6 +1162,7 @@ export function useDevicePairing(): {
         error,
         secondsRemaining,
         commissionProgress,
+        commissioningStep,
         matterNeedsHomeNetwork: status.mode === 'relay',
         savedWifi,
         chooseMatter,

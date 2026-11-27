@@ -127,7 +127,7 @@ cd platform/core && cargo run
 
 Registration and Relay need more settings. See `NEMU_CONVEX_SITE_URL` and `CONTROLLER_REGISTRATION_SECRET` in [`.env.example`](.env.example), and the [Controller JWT setup](packages/cloud/README.md).
 
-To run the Matter adapter too, use `pnpm infra:full`. It needs Linux for host networking and BlueZ.
+To run the Matter adapter too, use `pnpm infra:full`. It needs Linux for host networking and Bluetooth.
 
 ## Check your changes
 
@@ -139,7 +139,7 @@ To run the Matter adapter too, use `pnpm infra:full`. It needs Linux for host ne
 | `pnpm fmt:rust` | Formats the Rust code |
 | `pnpm format` | Formats the TypeScript code |
 
-`pnpm test` does not run the Rust tests. Run `cargo test` in `platform/core`, `platform/matter`, or `platform/updater`.
+`pnpm test` does not run the Rust tests. Run `cargo test` in `platform/core` or `platform/updater`. The Matter adapter's MQTT parity suite is `pnpm --filter @nemu/matter-harness harness` (see [`platform/matter-harness`](platform/matter-harness)).
 
 ## Find your way around
 
@@ -149,7 +149,8 @@ To run the Matter adapter too, use `pnpm infra:full`. It needs Linux for host ne
 | [`apps/mobile`](apps/mobile) | Expo app for iOS and Android |
 | [`apps/web`](apps/web) | Next.js marketing site, deployed at `nemu.sh` |
 | [`platform/core`](platform/core) | `nemu-core`, the Rust Controller service |
-| [`platform/matter`](platform/matter) | `nemu-matter`, the Rust Matter adapter |
+| [`platform/matter-adapter`](platform/matter-adapter) | `nemu-matter`, the Matter adapter, on matter.js in TypeScript |
+| [`platform/matter-harness`](platform/matter-harness) | MQTT parity suite for the Matter adapter, with simulated Devices |
 | [`platform/updater`](platform/updater) | Updater and Release publisher, in Rust |
 | [`packages/cloud`](packages/cloud) | Convex schema and functions |
 | [`packages/controller`](packages/controller) | Client connection code for LAN and Relay |

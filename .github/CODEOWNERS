@@ -4,6 +4,6 @@
 scripts/install.sh @kzolt
 infra/prod/ @kzolt
 platform/core/Dockerfile @kzolt
-platform/matter/Dockerfile @kzolt
+platform/matter-adapter/Dockerfile @kzolt
 apps/web/public/install.sh @kzolt
 apps/web/src/proxy.ts @kzolt
