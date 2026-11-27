@@ -1,4 +1,5 @@
 import { httpRouter } from 'convex/server'
+import { parseSealedToClient } from '../lib/relay'
 import { internal } from './_generated/api'
 import { httpAction } from './_generated/server'
 import { getTlsHttp, registerHttp, sessionHttp } from './controllers'
@@ -69,25 +70,16 @@ export const relayPendingHttp = httpAction(async (ctx, req) => {
         controllerId: body.controllerId,
     })
 
-    return new Response(
-        JSON.stringify({
-            messages: messages.map((message) => ({
-                requestId: message.requestId,
-                payload: message.payload,
-            })),
-        }),
-        {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-        }
-    )
+    return new Response(JSON.stringify({ messages }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+    })
 })
 
+/** Body: `{ registrationSecret?, sealed }`, where `sealed` is a response or push. */
 export const relayRespondHttp = httpAction(async (ctx, req) => {
     let body: {
-        controllerId?: string
-        requestId?: string
-        payload?: string
+        sealed?: unknown
         registrationSecret?: string
     }
     try {
@@ -99,30 +91,28 @@ export const relayRespondHttp = httpAction(async (ctx, req) => {
     const authError = authorizeController(body)
     if (authError) return authError
 
-    if (!body.controllerId || !body.requestId || !body.payload) {
-        return jsonError(
-            400,
-            'controllerId, requestId, and payload are required'
-        )
+    // Privacy: a bad envelope gets a fixed message, never an echo of itself.
+    const sealed = parseSealedToClient(body.sealed)
+    if (!sealed) {
+        return jsonError(400, 'malformed')
     }
 
     try {
         const id = await ctx.runMutation(internal.relay.respondInternal, {
-            controllerId: body.controllerId,
-            requestId: body.requestId,
-            payload: body.payload,
+            sealed,
         })
         return new Response(JSON.stringify({ ok: true, id }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         })
     } catch (error) {
-        const message =
-            error instanceof Error ? error.message : 'Failed to respond'
-        if (message === 'Controller not found') {
-            return jsonError(404, message)
+        if (
+            error instanceof Error &&
+            error.message === 'Controller not found'
+        ) {
+            return jsonError(404, 'Controller not found')
         }
-        return jsonError(500, message)
+        return jsonError(500, 'Failed to respond')
     }
 })
 

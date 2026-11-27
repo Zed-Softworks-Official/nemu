@@ -108,11 +108,13 @@ export function PairingGate(props: { children: React.ReactNode }) {
         minting.current = true
         void mintSessionViaRelay({
             convex,
+            // Compile shim (NEM-128): session mints are retired; NEM-131
+            // deletes this path.
             api: {
                 request: api.sessionMints.request,
                 responses: api.relay.responses,
                 acknowledge: api.relay.acknowledge,
-            },
+            } as unknown as Parameters<typeof mintSessionViaRelay>[0]['api'],
             controllerId,
             clientLabel: defaultClientLabel(),
             displayName: user.fullName ?? undefined,
