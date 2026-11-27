@@ -18,7 +18,9 @@ use crate::api::error::{ApiError, ApiResult};
 use crate::crypto::{random_token, sha256_hex};
 use crate::pairing::access_clients::touch_access_client;
 use crate::pairing::tombstones::access_client_status;
-use crate::relay_crypto::envelope::AccessClientStatus;
+use crate::relay_crypto::envelope::{
+    AccessClientStatus, TOMBSTONED_ACCESS_CLIENT, UNKNOWN_ACCESS_CLIENT,
+};
 use crate::relay_crypto::session::{
     LanRefusal, LocalSessionChallenge, NONCE_LEN, sign_refusal, verify_challenge,
 };
@@ -162,7 +164,7 @@ fn refused(code: &str, message: &str) -> ApiError {
 /// refusal is signed.
 pub fn revoked() -> ApiError {
     refused(
-        "tombstoned_access_client",
+        TOMBSTONED_ACCESS_CLIENT,
         "This Access Client was revoked. Create new keys and pair again at home.",
     )
 }
@@ -209,7 +211,7 @@ pub async fn open_local_session(
     let pair_again = |error| signed_refusal(state, error, access_client_id, client_nonce);
     let unknown = || {
         pair_again(refused(
-            "unknown_access_client",
+            UNKNOWN_ACCESS_CLIENT,
             "This Access Client is not paired with this Controller. Pair it again at home.",
         ))
     };

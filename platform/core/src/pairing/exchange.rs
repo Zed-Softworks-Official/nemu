@@ -35,6 +35,7 @@ use crate::pairing::tombstones::keys_tombstoned;
 use crate::relay_crypto::cpace::{
     InitiatorMessage, PairingContext, PartyKeys, Responder, ResponderMessage,
 };
+use crate::relay_crypto::envelope::TOMBSTONED_ACCESS_CLIENT;
 use crate::relay_crypto::grant::{AccessGrant, issue_grant};
 use crate::relay_crypto::session::{acceptable_encryption_key, acceptable_signing_key};
 use crate::state::AppState;
@@ -199,7 +200,7 @@ fn invalid_code() -> ApiError {
 
 fn tombstoned_keys() -> ApiError {
     ApiError::forbidden(
-        "tombstoned_access_client",
+        TOMBSTONED_ACCESS_CLIENT,
         "These keys belong to a revoked Access Client. Create new keys and pair again.",
     )
 }

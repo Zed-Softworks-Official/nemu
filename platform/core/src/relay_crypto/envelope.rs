@@ -39,6 +39,13 @@ const PUSH_KEY_LABEL: &[u8] = b"nemu-relay-push-key";
 pub const CLOCK_SKEW_MS: u64 = 60_000;
 const MAX_ID_BYTES: usize = 256;
 
+/// The error code for an Access Client the Controller does not know, over
+/// LAN and Relay alike.
+pub const UNKNOWN_ACCESS_CLIENT: &str = "unknown_access_client";
+/// The error code for a revoked (tombstoned) Access Client, over LAN and
+/// Relay alike.
+pub const TOMBSTONED_ACCESS_CLIENT: &str = "tombstoned_access_client";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum RelayRejection {
     #[error("malformed")]
@@ -49,9 +56,9 @@ pub enum RelayRejection {
     RetiredEpoch,
     #[error("expired")]
     Expired,
-    #[error("unknown_access_client")]
+    #[error("{}", UNKNOWN_ACCESS_CLIENT)]
     UnknownAccessClient,
-    #[error("tombstoned_access_client")]
+    #[error("{}", TOMBSTONED_ACCESS_CLIENT)]
     TombstonedAccessClient,
     #[error("bad_signature")]
     BadSignature,

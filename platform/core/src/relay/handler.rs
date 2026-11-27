@@ -32,7 +32,8 @@ use crate::relay::dispatch::{self, RelayAction};
 use crate::relay::store::{self, Claim};
 use crate::relay_crypto::envelope::{
     AccessClientStatus, RelayRejection, RequestHeader, RequestKeys, RequestPolicy, SealedRequest,
-    SealedResponse, open_request, reply_keys, seal_response,
+    SealedResponse, TOMBSTONED_ACCESS_CLIENT, UNKNOWN_ACCESS_CLIENT, open_request, reply_keys,
+    seal_response,
 };
 use crate::state::AppState;
 
@@ -245,8 +246,8 @@ fn rejection_reply(
             "This request arrived too late, so nothing changed. Check that this device's clock is right, then try again.",
             None,
         ),
-        RelayRejection::UnknownAccessClient => ("unknown_access_client", pair_again, None),
-        RelayRejection::TombstonedAccessClient => ("tombstoned_access_client", pair_again, None),
+        RelayRejection::UnknownAccessClient => (UNKNOWN_ACCESS_CLIENT, pair_again, None),
+        RelayRejection::TombstonedAccessClient => (TOMBSTONED_ACCESS_CLIENT, pair_again, None),
         RelayRejection::Replayed | RelayRejection::OutsideWindow => (
             if rejection == RelayRejection::Replayed {
                 "replayed"
